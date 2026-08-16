@@ -1,0 +1,9 @@
+export const SCHOOL_STATUS = Object.freeze({
+  ACTIVE: 'ACTIVE',
+  GRACE_PERIOD: 'GRACE_PERIOD',
+  SUSPENDED: 'SUSPENDED',
+  EXPIRED: 'EXPIRED',
+  INACTIVE: 'INACTIVE',
+});
+
+export const SCHOOL_STATUS_VALUES = Object.values(SCHOOL_STATUS);
