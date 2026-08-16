@@ -3,6 +3,7 @@ import Notification from './notification.model.js';
 import AppError from '../../utils/AppError.js';
 import { logAuditEvent } from '../audit/audit.service.js';
 import { AUTH_EVENTS } from '../../constants/index.js';
+import { emitToUser } from '../../providers/socket.provider.js';
 
 export async function createNotification(data, meta = {}) {
   if (!data.schoolId || !data.recipientUserId || !data.title || !data.message) {
@@ -33,7 +34,11 @@ export async function createNotification(data, meta = {}) {
     userAgent: meta.userAgent,
   });
 
-  return notification.toJSON();
+  // Emit real-time notification to the recipient
+  const jsonNotif = notification.toJSON();
+  emitToUser(data.recipientUserId, 'notification:new', jsonNotif);
+
+  return jsonNotif;
 }
 
 export async function getUserNotifications(filters, user) {
@@ -101,7 +106,10 @@ export async function markNotificationAsRead(id, user, meta = {}) {
     userAgent: meta.userAgent,
   });
 
-  return notification.toJSON();
+  const jsonNotif = notification.toJSON();
+  emitToUser(user.id, 'notification:read', { id: notification._id, notification: jsonNotif });
+
+  return jsonNotif;
 }
 
 export async function markAllNotificationsAsRead(user, meta = {}) {
@@ -125,6 +133,8 @@ export async function markAllNotificationsAsRead(user, meta = {}) {
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
+
+  emitToUser(user.id, 'notification:read-all', { markedCount: result.modifiedCount });
 
   return { success: true, message: `Marked ${result.modifiedCount} notifications as read` };
 }

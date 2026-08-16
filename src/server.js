@@ -2,6 +2,7 @@ import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { connectDB, disconnectDB } from './config/db.js';
 import { connectRedis, disconnectRedis } from './providers/redis.provider.js';
+import { initSocketServer, resetSocketServer } from './providers/socket.provider.js';
 import app from './app.js';
 
 const startServer = async () => {
@@ -17,6 +18,10 @@ const startServer = async () => {
     logger.info(`Health check: http://localhost:${env.PORT}/health`);
     logger.info(`API docs: http://localhost:${env.PORT}/api-docs`);
   });
+
+  // 4. Initialize Socket.io real-time communication
+  initSocketServer(server);
+  logger.info('⚡ Socket.io real-time server initialized.');
 
   // --- Graceful Shutdown ---
   let isShuttingDown = false;
@@ -46,6 +51,9 @@ const startServer = async () => {
 
       // Close Redis connection
       await disconnectRedis();
+
+      // Close Socket.io server
+      resetSocketServer();
 
       logger.info('Graceful shutdown completed.');
       process.exit(0);

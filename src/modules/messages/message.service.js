@@ -10,6 +10,7 @@ import TeacherAssignment from '../academics/teacherAssignment.model.js';
 import AppError from '../../utils/AppError.js';
 import { logAuditEvent } from '../audit/audit.service.js';
 import { AUTH_EVENTS, ROLES } from '../../constants/index.js';
+import { emitToUser } from '../../providers/socket.provider.js';
 
 export async function validateParticipantRelationship(senderUser, recipientUser) {
   // Same user check
@@ -197,9 +198,19 @@ export async function startConversation(data, user, meta = {}) {
     userAgent: meta.userAgent,
   });
 
+  const jsonConv = typeof conversation.toJSON === 'function' ? conversation.toJSON() : conversation;
+  const jsonMsg = typeof message.toJSON === 'function' ? message.toJSON() : message;
+
+  // Notify recipient in real time
+  emitToUser(recipientUser._id, 'message:new', {
+    conversationId: conversation._id,
+    message: jsonMsg,
+    conversation: jsonConv,
+  });
+
   return {
-    conversation: conversation.toJSON(),
-    message: message.toJSON(),
+    conversation: jsonConv,
+    message: jsonMsg,
   };
 }
 
@@ -329,5 +340,22 @@ export async function sendMessage(conversationId, data, user, meta = {}) {
     userAgent: meta.userAgent,
   });
 
-  return message.toJSON();
+  const jsonMsg = typeof message.toJSON === 'function' ? message.toJSON() : message;
+  const jsonConv = typeof conversation.toJSON === 'function' ? conversation.toJSON() : conversation;
+
+  // Notify other participants in real time
+  if (Array.isArray(conversation.participants)) {
+    conversation.participants.forEach((p) => {
+      const pUserId = p.userId?._id || p.userId;
+      if (pUserId && pUserId.toString() !== user.id.toString()) {
+        emitToUser(pUserId, 'message:new', {
+          conversationId: conversation._id,
+          message: jsonMsg,
+          conversation: jsonConv,
+        });
+      }
+    });
+  }
+
+  return jsonMsg;
 }
