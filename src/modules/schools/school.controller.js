@@ -96,7 +96,7 @@ export const resendAdminInvitation = asyncHandler(async (req, res) => {
   };
 
   const result = await schoolService.resendAdminInvitation(id, req.user.id, meta);
-  sendSuccess(res, HTTP_STATUS.OK, result.message);
+  sendSuccess(res, HTTP_STATUS.OK, result.message, { invitation: result.invitation });
 });
 
 export const acceptInvitation = asyncHandler(async (req, res) => {

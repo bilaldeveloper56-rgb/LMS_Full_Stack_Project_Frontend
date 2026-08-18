@@ -1,9 +1,14 @@
+import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import Teacher from './teacher.model.js';
 import User from '../users/user.model.js';
 import School from '../schools/school.model.js';
+import { env } from '../../config/env.js';
+import { logger } from '../../config/logger.js';
+import { sendEmail } from '../../providers/email.provider.js';
+import { teacherInvitationEmail } from '../../templates/emails/teacherInvitation.js';
 import AppError from '../../utils/AppError.js';
-import { ROLES, AUTH_EVENTS } from '../../constants/index.js';
+import { ROLES, USER_STATUS, AUTH_EVENTS } from '../../constants/index.js';
 import { logAuditEvent } from '../audit/audit.service.js';
 
 function resolveSchoolId(user, explicitSchoolId) {
@@ -36,19 +41,61 @@ export async function createTeacher(data, user, meta = {}) {
     );
   }
 
-  // 3. Verify userId if provided
-  if (data.userId) {
-    const userDoc = await User.findOne({ _id: data.userId, schoolId });
+  let linkedUserId = data.userId || null;
+  let createdUser = null;
+  let rawInvitationToken = null;
+
+  // 3. Handle user account relationship
+  if (linkedUserId) {
+    const userDoc = await User.findOne({ _id: linkedUserId, schoolId });
     if (!userDoc) {
       throw AppError.notFound('Linked user account not found in this school');
     }
     if (userDoc.role !== ROLES.TEACHER) {
       throw AppError.badRequest(`Linked user must have '${ROLES.TEACHER}' role`);
     }
+  } else {
+    // Check if user already exists with this email
+    const existingUser = await User.findOne({ email: data.email.toLowerCase().trim() });
+    if (existingUser) {
+      if (existingUser.schoolId?.toString() === schoolId.toString() && existingUser.role === ROLES.TEACHER) {
+        linkedUserId = existingUser._id;
+      } else {
+        throw AppError.conflict(
+          `A user account with email '${data.email}' already exists in another school or role`
+        );
+      }
+    } else {
+      // Create user account with INVITED status and secure activation token
+      rawInvitationToken = crypto.randomBytes(32).toString('hex');
+      const hashedInvitationToken = crypto.createHash('sha256').update(rawInvitationToken).digest('hex');
+      const invitationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      createdUser = new User({
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        email: data.email.toLowerCase().trim(),
+        phone: data.phone || null,
+        passwordHash: crypto.randomBytes(32).toString('hex'), // Unusable placeholder until invitation accepted
+        role: ROLES.TEACHER,
+        status: USER_STATUS.INVITED,
+        schoolId,
+        invitationToken: hashedInvitationToken,
+        invitationExpires,
+        invitedBy: user.id,
+        invitedAt: new Date(),
+        createdBy: user.id,
+        updatedBy: user.id,
+      });
+
+      await createdUser.save();
+      linkedUserId = createdUser._id;
+    }
   }
 
   const teacher = new Teacher({
     ...data,
+    userId: linkedUserId,
     employeeId: data.employeeId.trim().toUpperCase(),
     email: data.email.toLowerCase().trim(),
     schoolId,
@@ -57,6 +104,42 @@ export async function createTeacher(data, user, meta = {}) {
   });
 
   await teacher.save();
+
+  // 4. Send Teacher Invitation Email if user account was provisioned
+  let emailResult = null;
+  let invitationUrl = null;
+
+  if (createdUser && rawInvitationToken) {
+    invitationUrl = `${env.FRONTEND_URL}/accept-invitation?token=${rawInvitationToken}`;
+    const emailContent = teacherInvitationEmail({
+      firstName: teacher.firstName,
+      schoolName: school.name,
+      teacherEmail: teacher.email,
+      invitationUrl,
+      expiresIn: env.INVITATION_EXPIRES_IN || '7 days',
+    });
+
+    emailResult = await sendEmail({ to: teacher.email, ...emailContent });
+
+    if (!emailResult.success) {
+      logger.warn(`⚠️ Teacher invitation email could not be delivered to ${teacher.email}: ${emailResult.error}`);
+      logger.info(`[INVITATION LINK] Direct activation URL for ${teacher.email}: ${invitationUrl}`);
+    }
+
+    await logAuditEvent({
+      event: AUTH_EVENTS.TEACHER_INVITED,
+      userId: user.id,
+      schoolId,
+      entityType: 'User',
+      entityId: createdUser._id,
+      details: {
+        teacherEmail: teacher.email,
+        role: ROLES.TEACHER,
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+  }
 
   await logAuditEvent({
     event: AUTH_EVENTS.TEACHER_CREATED,
@@ -68,12 +151,20 @@ export async function createTeacher(data, user, meta = {}) {
       employeeId: teacher.employeeId,
       name: `${teacher.firstName} ${teacher.lastName}`,
       email: teacher.email,
+      userId: teacher.userId,
     },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
 
-  return teacher.toJSON();
+  return {
+    ...teacher.toJSON(),
+    invitation: {
+      sent: emailResult ? emailResult.success : false,
+      error: emailResult?.error || null,
+      ...(env.NODE_ENV !== 'production' && rawInvitationToken && { url: invitationUrl }),
+    },
+  };
 }
 
 export async function getTeachers(params, user) {

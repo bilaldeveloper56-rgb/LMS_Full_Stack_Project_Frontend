@@ -16,11 +16,17 @@ export const createParentSchema = z.object({
     .max(50),
   email: z.string({ required_error: 'Email is required' }).email('Invalid email format').toLowerCase().trim(),
   phone: z.string({ required_error: 'Phone number is required' }).trim().min(1, 'Phone is required'),
-  alternatePhone: z.string().trim().optional(),
-  address: z.string().trim().max(200).optional(),
-  occupation: z.string().trim().max(100).optional(),
-  relationship: z.string().trim().max(50).optional(),
-  userId: z.string().regex(objectIdRegex, 'Invalid user ID format').nullable().optional(),
+  alternatePhone: z.string().trim().optional().nullable().transform((val) => (val === '' ? null : val)),
+  address: z.string().trim().max(200).optional().nullable().transform((val) => (val === '' ? null : val)),
+  occupation: z.string().trim().max(100).optional().nullable().transform((val) => (val === '' ? null : val)),
+  relationship: z.string().trim().max(50).optional().nullable().transform((val) => (val === '' ? null : val)),
+  userId: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || objectIdRegex.test(val), { message: 'Invalid user ID format' }),
   schoolId: z.string().regex(objectIdRegex, 'Invalid school ID format').optional(),
 });
 
@@ -29,11 +35,17 @@ export const updateParentSchema = z.object({
   lastName: z.string().trim().min(1).max(50).optional(),
   email: z.string().email('Invalid email format').toLowerCase().trim().optional(),
   phone: z.string().trim().optional(),
-  alternatePhone: z.string().trim().nullable().optional(),
-  address: z.string().trim().max(200).nullable().optional(),
-  occupation: z.string().trim().max(100).nullable().optional(),
-  relationship: z.string().trim().max(50).nullable().optional(),
-  userId: z.string().regex(objectIdRegex, 'Invalid user ID format').nullable().optional(),
+  alternatePhone: z.string().trim().nullable().optional().transform((val) => (val === '' ? null : val)),
+  address: z.string().trim().max(200).nullable().optional().transform((val) => (val === '' ? null : val)),
+  occupation: z.string().trim().max(100).nullable().optional().transform((val) => (val === '' ? null : val)),
+  relationship: z.string().trim().max(50).nullable().optional().transform((val) => (val === '' ? null : val)),
+  userId: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || objectIdRegex.test(val), { message: 'Invalid user ID format' }),
 });
 
 export const queryParentsSchema = z.object({

@@ -151,14 +151,22 @@ export const createRateLimitStore = (prefix = 'rl:') => {
   const client = getRedisClient();
   if (!client) return undefined;
 
+  if (client.status !== 'ready') {
+    logger.warn(
+      `Redis is not ready (status: ${client.status}). Using in-memory rate-limit store.`
+    );
+    return undefined;
+  }
+
   try {
     return new RedisStore({
-      // Send command using the singleton ioredis client
       sendCommand: (...args) => client.call(...args),
       prefix,
     });
   } catch (err) {
-    logger.warn(`Failed to create Redis rate-limit store: ${err.message}. Using default in-memory store.`);
+    logger.warn(
+      `Failed to create Redis rate-limit store: ${err.message}. Using default in-memory store.`
+    );
     return undefined;
   }
 };

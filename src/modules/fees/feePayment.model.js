@@ -42,6 +42,12 @@ const feePaymentSchema = new mongoose.Schema(
       required: [true, 'Payment amount is required'],
       min: [1, 'Payment amount must be greater than 0'],
     },
+    currency: {
+      type: String,
+      default: 'PKR',
+      trim: true,
+      uppercase: true,
+    },
     paymentDate: {
       type: Date,
       default: Date.now,

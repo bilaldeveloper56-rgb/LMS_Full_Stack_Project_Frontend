@@ -237,6 +237,30 @@ describe('Academic Domain Validators Unit Tests', () => {
       assert.equal(result.success, true);
     });
 
+    it('should validate teacher payload with empty optional strings from form', () => {
+      const payload = {
+        employeeId: 'EMP-002',
+        firstName: 'Alan',
+        lastName: 'Turing',
+        email: 'alan.turing@school.edu',
+        phone: '',
+        dateOfBirth: '',
+        gender: 'OTHER',
+        qualification: '',
+        specialization: '',
+        joiningDate: '2026-08-18',
+        designation: 'Teacher',
+        profileImage: '',
+        employmentStatus: 'ACTIVE',
+        userId: '',
+      };
+      const result = createTeacherSchema.safeParse(payload);
+      assert.equal(result.success, true);
+      assert.equal(result.data.dateOfBirth, null);
+      assert.equal(result.data.profileImage, null);
+      assert.equal(result.data.userId, null);
+    });
+
     it('should reject teacher with invalid email', () => {
       const payload = {
         employeeId: 'EMP-001',
@@ -298,10 +322,40 @@ describe('Academic Domain Validators Unit Tests', () => {
         classId: '507f1f77bcf86cd799439022',
         sectionId: '507f1f77bcf86cd799439033',
         rollNumber: '05',
-        bloodGroup: 'B+',
       };
       const result = createStudentSchema.safeParse(payload);
       assert.equal(result.success, true);
+    });
+
+    it('should validate student creation payload with empty optional strings from form', () => {
+      const payload = {
+        admissionNumber: 'ADM-2026-002',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        dateOfBirth: '2012-04-15',
+        gender: 'FEMALE',
+        academicSessionId: '507f1f77bcf86cd799439011',
+        classId: '507f1f77bcf86cd799439022',
+        sectionId: '507f1f77bcf86cd799439033',
+        rollNumber: '',
+        admissionDate: '2026-08-18',
+        enrollmentStatus: 'ACTIVE',
+        bloodGroup: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        profileImage: '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        userId: '',
+      };
+      const result = createStudentSchema.safeParse(payload);
+      assert.equal(result.success, true);
+      assert.equal(result.data.profileImage, null);
+      assert.equal(result.data.email, null);
+      assert.equal(result.data.bloodGroup, null);
+      assert.equal(result.data.userId, null);
     });
 
     it('should validate update student schema', () => {

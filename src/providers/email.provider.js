@@ -24,7 +24,7 @@ export const getTransporter = () => {
     return null;
   }
 
-  const isSecure = Number(env.SMTP_PORT) === 465;
+  const isSecure = typeof env.SMTP_SECURE === 'boolean' ? env.SMTP_SECURE : Number(env.SMTP_PORT) === 465;
 
   cachedTransporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
@@ -94,14 +94,22 @@ export const sendEmail = async ({ to, subject, html, text }) => {
       text,
     });
 
-    logger.info(`📧 Email successfully sent to ${to}: "${subject}"`, {
+    logger.info(`📧 EMAIL_ACCEPTED_BY_PROVIDER: successfully sent to ${to}: "${subject}"`, {
+      provider: env.EMAIL_PROVIDER || 'resend',
+      from: env.SMTP_FROM,
       messageId: info.messageId,
+      recipient: to,
     });
 
     return { success: true, messageId: info.messageId };
   } catch (error) {
     // Log safe error message without credentials or tokens
-    logger.error(`Failed to send email to ${to}: ${error.message}`);
+    logger.error(`❌ EMAIL_SEND_FAILED for recipient ${to}: ${error.message}`, {
+      provider: env.EMAIL_PROVIDER || 'resend',
+      from: env.SMTP_FROM,
+      recipient: to,
+      error: error.message,
+    });
     return { success: false, error: error.message };
   }
 };

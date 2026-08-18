@@ -2,6 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { passwordResetEmail } from '../../src/templates/emails/passwordReset.js';
 import { emailVerificationEmail } from '../../src/templates/emails/emailVerification.js';
+import { schoolAdminInvitationEmail } from '../../src/templates/emails/schoolAdminInvitation.js';
+import { teacherInvitationEmail } from '../../src/templates/emails/teacherInvitation.js';
 import { welcomeEmail } from '../../src/templates/emails/welcome.js';
 
 describe('Email Templates Unit Tests', () => {
@@ -29,6 +31,38 @@ describe('Email Templates Unit Tests', () => {
     assert.ok(email.subject.includes('Verify Your Email'));
     assert.ok(email.html.includes('Bob'));
     assert.ok(email.html.includes('veriftoken456'));
+  });
+
+  it('should generate school admin invitation email with activation URL', () => {
+    const email = schoolAdminInvitationEmail({
+      firstName: 'Sarah',
+      schoolName: 'Beaconhouse School System',
+      adminEmail: 'sarah.admin@beaconhouse.edu.pk',
+      invitationUrl: 'https://lmsprime.online/accept-invitation?token=admintoken789',
+      expiresIn: '7 days',
+    });
+
+    assert.ok(email.subject.includes('School Administrator for Beaconhouse School System'));
+    assert.ok(email.html.includes('Sarah'));
+    assert.ok(email.html.includes('Beaconhouse School System'));
+    assert.ok(email.html.includes('admintoken789'));
+    assert.ok(email.text.includes('admintoken789'));
+  });
+
+  it('should generate teacher faculty invitation email with activation URL', () => {
+    const email = teacherInvitationEmail({
+      firstName: 'Tariq',
+      schoolName: 'City School Lahore',
+      teacherEmail: 'tariq.math@cityschool.edu.pk',
+      invitationUrl: 'https://lmsprime.online/accept-invitation?token=teachertoken999',
+      expiresIn: '7 days',
+    });
+
+    assert.ok(email.subject.includes('Faculty Teacher for City School Lahore'));
+    assert.ok(email.html.includes('Tariq'));
+    assert.ok(email.html.includes('City School Lahore'));
+    assert.ok(email.html.includes('teachertoken999'));
+    assert.ok(email.text.includes('teachertoken999'));
   });
 
   it('should generate welcome email', () => {

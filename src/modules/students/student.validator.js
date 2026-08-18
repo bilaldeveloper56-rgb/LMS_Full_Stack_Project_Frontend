@@ -26,13 +26,27 @@ export const createStudentSchema = z.object({
     .max(50),
   dateOfBirth: z
     .string({ required_error: 'Date of birth is required' })
+    .trim()
     .refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid date of birth' }),
   gender: z.enum(GENDER_VALUES).default('OTHER'),
-  profileImage: z.string().url().nullable().optional(),
-  email: z.string().email('Invalid email address').toLowerCase().trim().nullable().optional(),
-  phone: z.string().trim().nullable().optional(),
-  address: z.string().trim().max(200).nullable().optional(),
-  city: z.string().trim().max(100).nullable().optional(),
+  profileImage: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || z.string().url().safeParse(val).success, { message: 'Invalid profile image URL' }),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || z.string().email().safeParse(val).success, { message: 'Invalid email address' }),
+  phone: z.string().trim().nullable().optional().transform((val) => (val === '' ? null : val)),
+  address: z.string().trim().max(200).nullable().optional().transform((val) => (val === '' ? null : val)),
+  city: z.string().trim().max(100).nullable().optional().transform((val) => (val === '' ? null : val)),
   academicSessionId: z
     .string({ required_error: 'Academic session ID is required' })
     .regex(objectIdRegex, 'Invalid academic session ID format'),
@@ -42,13 +56,33 @@ export const createStudentSchema = z.object({
   sectionId: z
     .string({ required_error: 'Section ID is required' })
     .regex(objectIdRegex, 'Invalid section ID format'),
-  rollNumber: z.string().trim().max(50).nullable().optional(),
-  admissionDate: z.string().refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid admission date' }).optional(),
+  rollNumber: z.string().trim().max(50).nullable().optional().transform((val) => (val === '' ? null : val)),
+  admissionDate: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val === '' ? undefined : val))
+    .refine((d) => !d || !isNaN(Date.parse(d)), { message: 'Invalid admission date' }),
   enrollmentStatus: z.enum(ENROLLMENT_STATUS_VALUES).default('ACTIVE'),
-  bloodGroup: z.enum(BLOOD_GROUP_VALUES).nullable().optional(),
-  emergencyContactName: z.string().trim().max(100).nullable().optional(),
-  emergencyContactPhone: z.string().trim().nullable().optional(),
-  userId: z.string().regex(objectIdRegex, 'Invalid user ID format').nullable().optional(),
+  bloodGroup: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || BLOOD_GROUP_VALUES.includes(val), {
+      message: `Invalid blood group. Expected one of: ${BLOOD_GROUP_VALUES.join(', ')}`,
+    }),
+  emergencyContactName: z.string().trim().max(100).nullable().optional().transform((val) => (val === '' ? null : val)),
+  emergencyContactPhone: z.string().trim().nullable().optional().transform((val) => (val === '' ? null : val)),
+  userId: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || objectIdRegex.test(val), { message: 'Invalid user ID format' }),
   schoolId: z.string().regex(objectIdRegex, 'Invalid school ID format').optional(),
 });
 
@@ -56,23 +90,62 @@ export const updateStudentSchema = z.object({
   admissionNumber: z.string().trim().min(1).max(50).optional(),
   firstName: z.string().trim().min(1).max(50).optional(),
   lastName: z.string().trim().min(1).max(50).optional(),
-  dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid date of birth' }).optional(),
+  dateOfBirth: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val === '' ? undefined : val))
+    .refine((d) => !d || !isNaN(Date.parse(d)), { message: 'Invalid date of birth' }),
   gender: z.enum(GENDER_VALUES).optional(),
-  profileImage: z.string().url().nullable().optional(),
-  email: z.string().email('Invalid email address').toLowerCase().trim().nullable().optional(),
-  phone: z.string().trim().nullable().optional(),
-  address: z.string().trim().max(200).nullable().optional(),
-  city: z.string().trim().max(100).nullable().optional(),
+  profileImage: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || z.string().url().safeParse(val).success, { message: 'Invalid profile image URL' }),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || z.string().email().safeParse(val).success, { message: 'Invalid email address' }),
+  phone: z.string().trim().nullable().optional().transform((val) => (val === '' ? null : val)),
+  address: z.string().trim().max(200).nullable().optional().transform((val) => (val === '' ? null : val)),
+  city: z.string().trim().max(100).nullable().optional().transform((val) => (val === '' ? null : val)),
   academicSessionId: z.string().regex(objectIdRegex, 'Invalid academic session ID format').optional(),
   classId: z.string().regex(objectIdRegex, 'Invalid class ID format').optional(),
   sectionId: z.string().regex(objectIdRegex, 'Invalid section ID format').optional(),
-  rollNumber: z.string().trim().max(50).nullable().optional(),
-  admissionDate: z.string().refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid admission date' }).optional(),
+  rollNumber: z.string().trim().max(50).nullable().optional().transform((val) => (val === '' ? null : val)),
+  admissionDate: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val === '' ? undefined : val))
+    .refine((d) => !d || !isNaN(Date.parse(d)), { message: 'Invalid admission date' }),
   enrollmentStatus: z.enum(ENROLLMENT_STATUS_VALUES).optional(),
-  bloodGroup: z.enum(BLOOD_GROUP_VALUES).nullable().optional(),
-  emergencyContactName: z.string().trim().max(100).nullable().optional(),
-  emergencyContactPhone: z.string().trim().nullable().optional(),
-  userId: z.string().regex(objectIdRegex, 'Invalid user ID format').nullable().optional(),
+  bloodGroup: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || BLOOD_GROUP_VALUES.includes(val), {
+      message: `Invalid blood group. Expected one of: ${BLOOD_GROUP_VALUES.join(', ')}`,
+    }),
+  emergencyContactName: z.string().trim().max(100).nullable().optional().transform((val) => (val === '' ? null : val)),
+  emergencyContactPhone: z.string().trim().nullable().optional().transform((val) => (val === '' ? null : val)),
+  userId: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || objectIdRegex.test(val), { message: 'Invalid user ID format' }),
 });
 
 export const queryStudentsSchema = z.object({

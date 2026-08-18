@@ -63,3 +63,13 @@ export const BLOOD_GROUP = Object.freeze({
 });
 
 export const BLOOD_GROUP_VALUES = Object.values(BLOOD_GROUP);
+
+export const PROMOTION_STATUS = Object.freeze({
+  PROMOTED: 'PROMOTED',
+  RETAINED: 'RETAINED',
+  GRADUATED: 'GRADUATED',
+  TRANSFERRED: 'TRANSFERRED',
+  WITHDRAWN: 'WITHDRAWN',
+});
+
+export const PROMOTION_STATUS_VALUES = Object.values(PROMOTION_STATUS);

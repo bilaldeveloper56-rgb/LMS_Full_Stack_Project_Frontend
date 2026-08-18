@@ -182,15 +182,26 @@ export async function createSchoolWithAdmin(schoolData, adminData, superAdminId,
   const emailContent = schoolAdminInvitationEmail({
     firstName: createdAdmin.firstName,
     schoolName: createdSchool.name,
+    adminEmail: createdAdmin.email,
     invitationUrl,
     expiresIn: env.INVITATION_EXPIRES_IN,
   });
 
-  await sendEmail({ to: createdAdmin.email, ...emailContent });
+  const emailResult = await sendEmail({ to: createdAdmin.email, ...emailContent });
+
+  if (!emailResult.success) {
+    logger.warn(`⚠️ School administrator invitation email could not be delivered to ${createdAdmin.email}: ${emailResult.error}`);
+    logger.info(`[INVITATION LINK] Direct activation URL for ${createdAdmin.email}: ${invitationUrl}`);
+  }
 
   return {
     school: createdSchool.toJSON(),
     admin: createdAdmin.toJSON(),
+    invitation: {
+      sent: emailResult.success,
+      error: emailResult.error || null,
+      ...(env.NODE_ENV !== 'production' && { url: invitationUrl }),
+    },
   };
 }
 
@@ -222,8 +233,13 @@ export async function acceptInvitation(token, newPassword, meta = {}) {
   user.passwordChangedAt = new Date();
   await user.save();
 
+  const activationEvent =
+    user.role === ROLES.TEACHER
+      ? AUTH_EVENTS.TEACHER_ACTIVATED
+      : AUTH_EVENTS.SCHOOL_ADMIN_ACTIVATED;
+
   await logAuditEvent({
-    event: AUTH_EVENTS.SCHOOL_ADMIN_ACTIVATED,
+    event: activationEvent,
     userId: user._id,
     schoolId: user.schoolId,
     entityType: 'User',
@@ -477,13 +493,29 @@ export async function resendAdminInvitation(schoolId, superAdminId, meta = {}) {
   const emailContent = schoolAdminInvitationEmail({
     firstName: admin.firstName,
     schoolName: school.name,
+    adminEmail: admin.email,
     invitationUrl,
     expiresIn: env.INVITATION_EXPIRES_IN,
   });
 
-  await sendEmail({ to: admin.email, ...emailContent });
+  const emailResult = await sendEmail({ to: admin.email, ...emailContent });
 
-  return { success: true, message: 'Invitation email resent successfully' };
+  if (!emailResult.success) {
+    logger.warn(`⚠️ Resend invitation email to ${admin.email} failed: ${emailResult.error}`);
+    logger.info(`[INVITATION LINK] Direct activation URL for ${admin.email}: ${invitationUrl}`);
+  }
+
+  return {
+    success: true,
+    message: emailResult.success
+      ? 'Invitation email resent successfully'
+      : 'Invitation generated. Note: SMTP provider did not deliver message to recipient.',
+    invitation: {
+      sent: emailResult.success,
+      error: emailResult.error || null,
+      ...(env.NODE_ENV !== 'production' && { url: invitationUrl }),
+    },
+  };
 }
 
 /**
@@ -503,6 +535,12 @@ export async function getSchoolStats() {
 
   return {
     total,
+    active,
+    gracePeriod,
+    suspended,
+    expired,
+    inactive,
+    pending: gracePeriod,
     byStatus: {
       active,
       gracePeriod,

@@ -16,7 +16,7 @@ describe('School Model Unit Tests', () => {
     assert.equal(school.email, 'contact@springfield.edu');
     assert.equal(school.status, SCHOOL_STATUS.ACTIVE);
     assert.equal(school.timezone, 'UTC');
-    assert.equal(school.currency, 'USD');
+    assert.equal(school.currency, 'PKR');
     assert.equal(school.language, 'en');
   });
 

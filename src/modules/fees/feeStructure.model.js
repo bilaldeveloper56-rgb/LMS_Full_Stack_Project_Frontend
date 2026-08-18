@@ -43,6 +43,12 @@ const feeStructureSchema = new mongoose.Schema(
       required: [true, 'Amount is required'],
       min: [0, 'Amount cannot be negative'],
     },
+    currency: {
+      type: String,
+      default: 'PKR',
+      trim: true,
+      uppercase: true,
+    },
     frequency: {
       type: String,
       enum: {

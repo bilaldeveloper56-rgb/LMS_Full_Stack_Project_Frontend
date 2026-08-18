@@ -67,7 +67,9 @@ const schoolSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: 'USD',
+      default: 'PKR',
+      trim: true,
+      uppercase: true,
     },
     language: {
       type: String,

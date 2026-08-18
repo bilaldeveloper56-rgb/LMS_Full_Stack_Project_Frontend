@@ -17,6 +17,12 @@ const startServer = async () => {
     logger.info(`Server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
     logger.info(`Health check: http://localhost:${env.PORT}/health`);
     logger.info(`API docs: http://localhost:${env.PORT}/api-docs`);
+    logger.info(`📧 Active Email Provider: [${env.EMAIL_PROVIDER || 'resend'}]`);
+    logger.info(`   Host: ${env.SMTP_HOST || '(not configured)'}`);
+    logger.info(`   Port: ${env.SMTP_PORT}`);
+    logger.info(`   Secure: ${env.SMTP_SECURE}`);
+    logger.info(`   From: ${env.SMTP_FROM}`);
+    logger.info(`   Auth Configured: ${Boolean(env.SMTP_USER && env.SMTP_PASSWORD)}`);
   });
 
   // 4. Initialize Socket.io real-time communication

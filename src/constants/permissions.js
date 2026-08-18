@@ -45,6 +45,11 @@ export const PERMISSIONS = Object.freeze({
   ACADEMIC_SESSIONS_DELETE: 'academic_sessions:delete',
   ACADEMIC_SESSIONS_MANAGE: 'academic_sessions:manage',
 
+  // Student Promotions
+  PROMOTIONS_READ: 'promotions:read',
+  PROMOTIONS_CREATE: 'promotions:create',
+  PROMOTIONS_MANAGE: 'promotions:manage',
+
   // Classes
   CLASSES_READ: 'classes:read',
   CLASSES_CREATE: 'classes:create',
@@ -228,6 +233,11 @@ export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
     PERMISSIONS.ACADEMIC_SESSIONS_UPDATE,
     PERMISSIONS.ACADEMIC_SESSIONS_DELETE,
     PERMISSIONS.ACADEMIC_SESSIONS_MANAGE,
+
+    // Student Promotions
+    PERMISSIONS.PROMOTIONS_READ,
+    PERMISSIONS.PROMOTIONS_CREATE,
+    PERMISSIONS.PROMOTIONS_MANAGE,
 
     // Classes
     PERMISSIONS.CLASSES_READ,

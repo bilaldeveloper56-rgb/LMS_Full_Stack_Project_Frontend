@@ -129,6 +129,12 @@ const feeInvoiceSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    currency: {
+      type: String,
+      default: 'PKR',
+      trim: true,
+      uppercase: true,
+    },
     dueDate: {
       type: Date,
       required: [true, 'Due date is required'],

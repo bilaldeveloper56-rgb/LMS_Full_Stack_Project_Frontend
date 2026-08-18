@@ -15,7 +15,7 @@ async function seedSuperAdmin() {
     logger.info('Initializing Super Admin seed process...');
     await connectDB();
 
-    // 1. Check if Super Admin already exists
+    // 1. Check if Super Admin already exists by role
     const existingSuperAdmin = await User.findOne({ role: ROLES.SUPER_ADMIN });
     if (existingSuperAdmin) {
       logger.warn(
@@ -25,10 +25,20 @@ async function seedSuperAdmin() {
       process.exit(0);
     }
 
-    // 2. Hash password
+    // 2. Check if a user already exists with the configured Super Admin email
+    const existingEmailUser = await User.findOne({ email: env.SUPER_ADMIN_EMAIL.toLowerCase() });
+    if (existingEmailUser) {
+      logger.warn(
+        `A user already exists with email '${existingEmailUser.email}' (role: ${existingEmailUser.role}). Creation aborted.`
+      );
+      await disconnectDB();
+      process.exit(0);
+    }
+
+    // 3. Hash password using existing User.hashPassword static method
     const hashedPassword = await User.hashPassword(env.SUPER_ADMIN_PASSWORD);
 
-    // 3. Create Super Admin
+    // 4. Create platform-level Super Admin
     const superAdmin = await User.create({
       firstName: env.SUPER_ADMIN_FIRST_NAME,
       lastName: env.SUPER_ADMIN_LAST_NAME,
@@ -41,7 +51,7 @@ async function seedSuperAdmin() {
       passwordChangedAt: new Date(),
     });
 
-    // 4. Log audit event
+    // 5. Log audit event
     await logAuditEvent({
       event: AUTH_EVENTS.SUPER_ADMIN_SEEDED,
       userId: superAdmin._id,

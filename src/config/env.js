@@ -45,11 +45,17 @@ const envSchema = z.object({
   SUPER_ADMIN_LAST_NAME: z.string().default('SuperAdmin'),
 
   // SMTP (Resend SMTP / standard SMTP — logs to console when unconfigured)
+  EMAIL_PROVIDER: z.string().default('resend'),
   SMTP_HOST: z.string().default(''),
   SMTP_PORT: z.coerce.number().default(465),
+  SMTP_SECURE: z
+    .string()
+    .default('true')
+    .transform((v) => v === 'true' || v === true)
+    .or(z.boolean().default(true)),
   SMTP_USER: z.string().default(''),
   SMTP_PASSWORD: z.string().default(''),
-  SMTP_FROM: z.string().default('onboarding@resend.dev'),
+  SMTP_FROM: z.string().default('no-reply@lmsprime.online'),
 
   // Cloudinary (optional — used for media/attachment uploads)
   CLOUDINARY_CLOUD_NAME: z.string().default(''),

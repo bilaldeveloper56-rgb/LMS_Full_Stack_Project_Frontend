@@ -47,6 +47,14 @@ const enrollmentSchema = new mongoose.Schema(
       },
       default: ENROLLMENT_STATUS.ACTIVE,
     },
+    promotionStatus: {
+      type: String,
+      enum: {
+        values: ['ENROLLED', 'PROMOTED', 'RETAINED', 'GRADUATED', 'TRANSFERRED', 'WITHDRAWN'],
+        message: 'Invalid promotion status: {VALUE}',
+      },
+      default: 'ENROLLED',
+    },
     enrolledAt: {
       type: Date,
       default: Date.now,
@@ -87,10 +95,11 @@ const enrollmentSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for historical tracking and class rosters
-enrollmentSchema.index({ schoolId: 1, studentId: 1, academicSessionId: 1 });
+// Indexes for historical tracking, uniqueness, and class rosters
+enrollmentSchema.index({ schoolId: 1, studentId: 1, academicSessionId: 1 }, { unique: true });
 enrollmentSchema.index({ schoolId: 1, academicSessionId: 1, classId: 1, sectionId: 1 });
 enrollmentSchema.index({ schoolId: 1, enrollmentStatus: 1 });
+enrollmentSchema.index({ schoolId: 1, promotionStatus: 1 });
 
 const Enrollment = mongoose.model('Enrollment', enrollmentSchema);
 export default Enrollment;

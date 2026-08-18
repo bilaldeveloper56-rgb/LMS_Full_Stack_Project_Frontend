@@ -17,6 +17,7 @@ import parentRoutes from './modules/parents/parent.routes.js';
 import studentParentRoutes from './modules/parents/studentParent.routes.js';
 import studentRoutes from './modules/students/student.routes.js';
 import enrollmentRoutes from './modules/students/enrollment.routes.js';
+import promotionRoutes from './modules/promotions/promotion.routes.js';
 import attendanceRoutes from './modules/attendance/attendance.routes.js';
 import leaveRoutes from './modules/leaves/leave.routes.js';
 import timetableRoutes from './modules/timetable/timetable.routes.js';
@@ -32,6 +33,7 @@ import uploadRoutes from './modules/uploads/upload.routes.js';
 import analyticsRoutes from './modules/analytics/analytics.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import auditRoutes from './modules/audit/audit.routes.js';
+import sanitizeQuery from './middlewares/sanitizeQuery.js';
 import { setupSwagger } from './docs/swagger.js';
 
 const app = express();
@@ -39,8 +41,9 @@ const app = express();
 // --- Security & Parsing Middleware ---
 applySecurityMiddleware(app);
 
-// --- Request Tracking ---
+// --- Request Tracking & Query Sanitization ---
 app.use(requestId);
+app.use(sanitizeQuery);
 
 // --- Request Logging ---
 app.use(requestLogger);
@@ -64,6 +67,7 @@ app.use('/api/v1/parents', parentRoutes);
 app.use('/api/v1/student-parent-links', studentParentRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/enrollments', enrollmentRoutes);
+app.use('/api/v1/promotions', promotionRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/leaves', leaveRoutes);
 app.use('/api/v1/timetable', timetableRoutes);

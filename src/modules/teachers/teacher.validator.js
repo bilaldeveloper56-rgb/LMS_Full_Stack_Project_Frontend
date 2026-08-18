@@ -21,16 +21,40 @@ export const createTeacherSchema = z.object({
     .min(1, 'Last name is required')
     .max(50),
   email: z.string({ required_error: 'Email is required' }).email('Invalid email address format').toLowerCase().trim(),
-  phone: z.string().trim().optional(),
-  dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid date of birth' }).optional(),
+  phone: z.string().trim().optional().nullable().transform((val) => (val === '' ? null : val)),
+  dateOfBirth: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val === '' ? null : val))
+    .refine((d) => !d || !isNaN(Date.parse(d)), { message: 'Invalid date of birth' }),
   gender: z.enum(GENDER_VALUES).default('OTHER'),
-  qualification: z.string().trim().max(100).optional(),
-  specialization: z.string().trim().max(100).optional(),
-  joiningDate: z.string().refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid joining date' }).optional(),
+  qualification: z.string().trim().max(100).optional().nullable().transform((val) => (val === '' ? null : val)),
+  specialization: z.string().trim().max(100).optional().nullable().transform((val) => (val === '' ? null : val)),
+  joiningDate: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val === '' ? undefined : val))
+    .refine((d) => !d || !isNaN(Date.parse(d)), { message: 'Invalid joining date' }),
   designation: z.string().trim().max(50).default('Teacher'),
-  profileImage: z.string().url().optional().nullable(),
+  profileImage: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || z.string().url().safeParse(val).success, { message: 'Invalid profile image URL' }),
   employmentStatus: z.enum(EMPLOYMENT_STATUS_VALUES).default('ACTIVE'),
-  userId: z.string().regex(objectIdRegex, 'Invalid user ID format').nullable().optional(),
+  userId: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || objectIdRegex.test(val), { message: 'Invalid user ID format' }),
   schoolId: z.string().regex(objectIdRegex, 'Invalid school ID format').optional(),
 });
 
@@ -39,16 +63,40 @@ export const updateTeacherSchema = z.object({
   firstName: z.string().trim().min(1).max(50).optional(),
   lastName: z.string().trim().min(1).max(50).optional(),
   email: z.string().email('Invalid email address format').toLowerCase().trim().optional(),
-  phone: z.string().trim().nullable().optional(),
-  dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid date of birth' }).nullable().optional(),
+  phone: z.string().trim().nullable().optional().transform((val) => (val === '' ? null : val)),
+  dateOfBirth: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((d) => !d || !isNaN(Date.parse(d)), { message: 'Invalid date of birth' }),
   gender: z.enum(GENDER_VALUES).optional(),
-  qualification: z.string().trim().max(100).nullable().optional(),
-  specialization: z.string().trim().max(100).nullable().optional(),
-  joiningDate: z.string().refine((d) => !isNaN(Date.parse(d)), { message: 'Invalid joining date' }).optional(),
+  qualification: z.string().trim().max(100).nullable().optional().transform((val) => (val === '' ? null : val)),
+  specialization: z.string().trim().max(100).nullable().optional().transform((val) => (val === '' ? null : val)),
+  joiningDate: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? undefined : val))
+    .refine((d) => !d || !isNaN(Date.parse(d)), { message: 'Invalid joining date' }),
   designation: z.string().trim().max(50).optional(),
-  profileImage: z.string().url().nullable().optional(),
+  profileImage: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || z.string().url().safeParse(val).success, { message: 'Invalid profile image URL' }),
   employmentStatus: z.enum(EMPLOYMENT_STATUS_VALUES).optional(),
-  userId: z.string().regex(objectIdRegex, 'Invalid user ID format').nullable().optional(),
+  userId: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => (val === '' ? null : val))
+    .refine((val) => !val || objectIdRegex.test(val), { message: 'Invalid user ID format' }),
 });
 
 export const queryTeachersSchema = z.object({

@@ -19,6 +19,8 @@ export {
   GENDER_VALUES,
   BLOOD_GROUP,
   BLOOD_GROUP_VALUES,
+  PROMOTION_STATUS,
+  PROMOTION_STATUS_VALUES,
 } from './academicStatus.js';
 export {
   ATTENDANCE_STATUS,
