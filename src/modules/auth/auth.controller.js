@@ -2,19 +2,26 @@ import * as authService from './auth.service.js';
 import asyncHandler from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/responseHelper.js';
 import { env } from '../../config/env.js';
+import { logger } from '../../config/logger.js';
 import { HTTP_STATUS } from '../../constants/index.js';
 
 /**
  * Cookie options for refresh token.
  */
-const getRefreshCookieOptions = () => ({
-  httpOnly: true,
-  secure: env.COOKIE_SECURE,
-  sameSite: env.COOKIE_SAME_SITE,
-  path: '/api/v1/auth',
-  maxAge: parseCookieMaxAge(env.JWT_REFRESH_EXPIRES_IN),
-  ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
-});
+const getRefreshCookieOptions = () => {
+  const isSameSiteNone = env.COOKIE_SAME_SITE === 'none';
+  const isSecure = isSameSiteNone || env.COOKIE_SECURE || env.NODE_ENV === 'production';
+
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: env.COOKIE_SAME_SITE,
+    path: '/api/v1/auth',
+    maxAge: parseCookieMaxAge(env.JWT_REFRESH_EXPIRES_IN),
+    ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
+    ...(isSameSiteNone && isSecure && { partitioned: true }),
+  };
+};
 
 /**
  * Parse duration string to milliseconds for cookie maxAge.
@@ -37,12 +44,16 @@ const setRefreshCookie = (res, token) => {
  * Clear refresh token cookie.
  */
 const clearRefreshCookie = (res) => {
+  const isSameSiteNone = env.COOKIE_SAME_SITE === 'none';
+  const isSecure = isSameSiteNone || env.COOKIE_SECURE || env.NODE_ENV === 'production';
+
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: env.COOKIE_SECURE,
+    secure: isSecure,
     sameSite: env.COOKIE_SAME_SITE,
     path: '/api/v1/auth',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
+    ...(isSameSiteNone && isSecure && { partitioned: true }),
   });
 };
 
@@ -57,6 +68,18 @@ export const login = asyncHandler(async (req, res) => {
 
   setRefreshCookie(res, result.refreshToken);
 
+  const cookieOptions = getRefreshCookieOptions();
+  logger.info('🔐 [AUTH_DIAGNOSTIC] Login response setting refresh cookie:', {
+    origin: req.headers.origin || 'none',
+    cookieSecure: cookieOptions.secure,
+    cookieSameSite: cookieOptions.sameSite,
+    cookieDomain: cookieOptions.domain || 'none (host-only)',
+    cookiePath: cookieOptions.path,
+    cookiePartitioned: Boolean(cookieOptions.partitioned),
+    nodeEnv: env.NODE_ENV,
+    hasRefreshToken: Boolean(result.refreshToken),
+  });
+
   sendSuccess(res, HTTP_STATUS.OK, 'Login successful', {
     user: result.user,
     accessToken: result.accessToken,
@@ -64,7 +87,21 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const refreshToken = asyncHandler(async (req, res) => {
+  const cookieNames = req.cookies ? Object.keys(req.cookies) : [];
+  const hasCookieToken = Boolean(req.cookies?.refreshToken);
+  const hasBodyToken = Boolean(req.body?.refreshToken);
   const token = req.cookies?.refreshToken || req.body?.refreshToken;
+
+  logger.info('🔄 [AUTH_DIAGNOSTIC] Refresh-token request received:', {
+    origin: req.headers.origin || 'none',
+    hasCookieToken,
+    hasBodyToken,
+    cookieNames,
+    cookieSecure: env.COOKIE_SECURE,
+    cookieSameSite: env.COOKIE_SAME_SITE,
+    nodeEnv: env.NODE_ENV,
+  });
+
   const meta = {
     userAgent: req.headers['user-agent'],
     ipAddress: req.ip,

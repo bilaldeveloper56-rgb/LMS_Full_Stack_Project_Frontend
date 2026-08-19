@@ -71,11 +71,11 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().default(''),
 }).superRefine((data, ctx) => {
   if (data.NODE_ENV === 'production') {
-    if (process.env.COOKIE_SECURE === undefined) {
-      data.COOKIE_SECURE = true;
-    }
     if (process.env.COOKIE_SAME_SITE === undefined) {
       data.COOKIE_SAME_SITE = 'none';
+    }
+    if (process.env.COOKIE_SECURE === undefined || data.COOKIE_SAME_SITE === 'none') {
+      data.COOKIE_SECURE = true;
     }
     if (!data.SUPER_ADMIN_PASSWORD || data.SUPER_ADMIN_PASSWORD.length < 8) {
       ctx.addIssue({
@@ -85,7 +85,10 @@ const envSchema = z.object({
       });
     }
   } else {
-    // In development/test, fallback to development default if not explicitly provided
+    // If SameSite is 'none', Secure MUST be true even in dev/test for browser RFC compliance
+    if (data.COOKIE_SAME_SITE === 'none') {
+      data.COOKIE_SECURE = true;
+    }
     if (!data.SUPER_ADMIN_PASSWORD) {
       data.SUPER_ADMIN_PASSWORD = 'SuperAdmin@2026!';
     }
