@@ -10,7 +10,7 @@ import { HTTP_STATUS } from '../../constants/index.js';
 const getRefreshCookieOptions = () => ({
   httpOnly: true,
   secure: env.COOKIE_SECURE,
-  sameSite: 'lax',
+  sameSite: env.COOKIE_SAME_SITE,
   path: '/api/v1/auth',
   maxAge: parseCookieMaxAge(env.JWT_REFRESH_EXPIRES_IN),
   ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
@@ -40,7 +40,7 @@ const clearRefreshCookie = (res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: env.COOKIE_SECURE,
-    sameSite: 'lax',
+    sameSite: env.COOKIE_SAME_SITE,
     path: '/api/v1/auth',
     ...(env.COOKIE_DOMAIN && { domain: env.COOKIE_DOMAIN }),
   });

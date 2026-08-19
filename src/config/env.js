@@ -30,8 +30,10 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().default(''),
   COOKIE_SECURE: z
     .string()
-    .default('false')
-    .transform((v) => v === 'true'),
+    .transform((v) => v === 'true')
+    .or(z.boolean())
+    .default(false),
+  COOKIE_SAME_SITE: z.enum(['none', 'lax', 'strict']).default('lax'),
 
   // Password reset & email verification & invitations
   PASSWORD_RESET_EXPIRES_IN: z.string().default('10m'),
@@ -69,6 +71,12 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().default(''),
 }).superRefine((data, ctx) => {
   if (data.NODE_ENV === 'production') {
+    if (process.env.COOKIE_SECURE === undefined) {
+      data.COOKIE_SECURE = true;
+    }
+    if (process.env.COOKIE_SAME_SITE === undefined) {
+      data.COOKIE_SAME_SITE = 'none';
+    }
     if (!data.SUPER_ADMIN_PASSWORD || data.SUPER_ADMIN_PASSWORD.length < 8) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

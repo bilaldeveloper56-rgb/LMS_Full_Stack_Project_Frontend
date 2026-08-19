@@ -21,11 +21,18 @@ const applySecurityMiddleware = (app) => {
   app.use(helmet());
 
   // CORS - configured origins only, NOT wildcard
-  const allowedOrigins = (env.FRONTEND_URL || '').split(',').map(origin => origin.trim());
+  const allowedOrigins = (env.FRONTEND_URL || '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''));
+
   app.use(cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) {
+        return callback(null, true);
+      }
+      const cleanOrigin = origin.replace(/\/+$/, '');
+      if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
