@@ -1,0 +1,203 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  /* ── Primary (Professional Blue) ── */
+  --color-primary-50: oklch(0.97 0.014 250);
+  --color-primary-100: oklch(0.93 0.032 250);
+  --color-primary-200: oklch(0.87 0.06 250);
+  --color-primary-300: oklch(0.78 0.1 250);
+  --color-primary-400: oklch(0.68 0.14 250);
+  --color-primary-500: oklch(0.58 0.17 250);
+  --color-primary-600: oklch(0.50 0.18 250);
+  --color-primary-700: oklch(0.44 0.16 250);
+  --color-primary-800: oklch(0.38 0.13 250);
+  --color-primary-900: oklch(0.33 0.1 250);
+
+  /* ── Success (Green) ── */
+  --color-success-50: oklch(0.97 0.02 155);
+  --color-success-100: oklch(0.93 0.04 155);
+  --color-success-500: oklch(0.60 0.16 155);
+  --color-success-600: oklch(0.52 0.15 155);
+  --color-success-700: oklch(0.45 0.13 155);
+
+  /* ── Warning (Amber) ── */
+  --color-warning-50: oklch(0.98 0.02 85);
+  --color-warning-100: oklch(0.95 0.05 85);
+  --color-warning-500: oklch(0.75 0.16 70);
+  --color-warning-600: oklch(0.65 0.17 55);
+  --color-warning-700: oklch(0.55 0.16 50);
+
+  /* ── Danger (Red) ── */
+  --color-danger-50: oklch(0.97 0.015 25);
+  --color-danger-100: oklch(0.93 0.04 25);
+  --color-danger-500: oklch(0.58 0.2 25);
+  --color-danger-600: oklch(0.52 0.2 25);
+  --color-danger-700: oklch(0.45 0.18 25);
+
+  /* ── Info (Cyan/Teal) ── */
+  --color-info-50: oklch(0.97 0.015 210);
+  --color-info-100: oklch(0.93 0.035 210);
+  --color-info-500: oklch(0.60 0.13 210);
+  --color-info-600: oklch(0.52 0.12 210);
+
+  /* ── Surface / Layout tokens ── */
+  --color-surface: #ffffff;
+  --color-surface-muted: oklch(0.98 0.003 265);
+  --color-surface-inset: oklch(0.96 0.005 265);
+  --color-border: oklch(0.90 0.006 265);
+  --color-border-muted: oklch(0.93 0.005 265);
+  --color-ring: oklch(0.58 0.17 250 / 0.35);
+
+  /* ── Text ── */
+  --color-text-primary: oklch(0.15 0.01 265);
+  --color-text-secondary: oklch(0.40 0.015 265);
+  --color-text-muted: oklch(0.55 0.01 265);
+  --color-text-inverted: #ffffff;
+
+  /* ── Font ── */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* ── Radius ── */
+  --radius-xs: 0.1875rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.06), 0 2px 4px -2px oklch(0 0 0 / 0.04);
+  --shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.06), 0 4px 6px -4px oklch(0 0 0 / 0.04);
+  --shadow-overlay: 0 20px 25px -5px oklch(0 0 0 / 0.08), 0 8px 10px -6px oklch(0 0 0 / 0.04);
+
+  /* ── Sidebar ── */
+  --sidebar-width: 15rem;
+  --sidebar-collapsed-width: 4rem;
+  --header-height: 3.5rem;
+
+  /* ── Transition ── */
+  --transition-fast: 100ms;
+  --transition-base: 150ms;
+  --transition-slow: 250ms;
+
+  /* ── Z-index ── */
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+}
+
+/* ── Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Skip to content ── */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--color-primary-600);
+  color: white;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-decoration: none;
+  border-radius: 0 0 var(--radius-md) 0;
+}
+
+.skip-to-content:focus {
+  left: 0;
+}
+
+/* ── Focus ── */
+:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.78 0.005 265);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.65 0.01 265);
+}
+
+/* ── Utility: skeleton pulse ── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ── Utility: toast slide ── */
+@keyframes toast-enter {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes toast-exit {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-100%); opacity: 0; }
+}
+
+.toast-enter {
+  animation: toast-enter 250ms ease-out;
+}
+
+.toast-exit {
+  animation: toast-exit 200ms ease-in forwards;
+}
+
+/* ── Utility: backdrop ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 150ms ease-out;
+}
+
+/* ── Utility: slide-in ── */
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 250ms ease-out;
+}
