@@ -114,3 +114,14 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
     { user }
   );
 });
+
+export const deleteSchool = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const meta = {
+    userAgent: req.headers['user-agent'],
+    ipAddress: req.ip,
+  };
+
+  const result = await schoolService.deleteSchool(id, req.user.id, meta);
+  sendSuccess(res, HTTP_STATUS.OK, result.message);
+});

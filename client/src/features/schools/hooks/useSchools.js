@@ -9,6 +9,7 @@ import {
   changeSchoolStatus,
   resendAdminInvitation,
   acceptInvitation,
+  deleteSchool,
 } from '../api/schools.api';
 import { useToast } from '@/components/feedback';
 import { getErrorMessage } from '@/lib/utils';
@@ -131,6 +132,24 @@ export function useAcceptInvitation() {
     mutationFn: (payload) => acceptInvitation(payload),
     onSuccess: (data) => {
       toast.success(data?.message || 'Account activated successfully. You can now log in.');
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+}
+
+export function useDeleteSchool() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (id) => deleteSchool(id),
+    onSuccess: (data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['schools'] });
+      queryClient.invalidateQueries({ queryKey: ['schools', 'stats'] });
+      queryClient.removeQueries({ queryKey: ['schools', id] });
+      toast.success(data?.message || 'School deleted successfully');
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));

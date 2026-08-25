@@ -92,3 +92,13 @@ export async function acceptInvitation(payload) {
   const response = await api.post('/schools/accept-invitation', payload);
   return response.data;
 }
+
+/**
+ * Soft-delete a school (SUPER_ADMIN only).
+ * @param {string} id
+ * @returns {Promise<object>}
+ */
+export async function deleteSchool(id) {
+  const response = await api.delete(`/schools/${id}`);
+  return response.data;
+}

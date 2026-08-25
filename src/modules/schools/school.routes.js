@@ -295,4 +295,34 @@ router.post(
   schoolController.resendAdminInvitation
 );
 
+/**
+ * @swagger
+ * /schools/{id}:
+ *   delete:
+ *     tags: [Schools]
+ *     summary: Soft-delete school and deactivate associated accounts (SUPER_ADMIN only)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: School deleted successfully
+ *       403:
+ *         description: Forbidden - SUPER_ADMIN only
+ *       404:
+ *         description: School not found
+ */
+router.delete(
+  '/:id',
+  authenticate,
+  authorize(ROLES.SUPER_ADMIN),
+  requirePermission(PERMISSIONS.SCHOOLS_DELETE),
+  schoolController.deleteSchool
+);
+
 export default router;

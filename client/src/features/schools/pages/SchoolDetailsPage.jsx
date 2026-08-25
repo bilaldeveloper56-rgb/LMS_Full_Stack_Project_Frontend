@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Building2,
@@ -12,8 +12,10 @@ import {
   DollarSign,
   Edit3,
   ShieldAlert,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
-import { Breadcrumb, Button, Card } from '@/components/ui';
+import { Breadcrumb, Button, Card, Modal } from '@/components/ui';
 import { ErrorState } from '@/components/feedback';
 import { SchoolStatusBadge } from '../components/SchoolStatusBadge';
 import { ChangeStatusModal } from '../components/ChangeStatusModal';
@@ -21,16 +23,20 @@ import {
   useSchool,
   useChangeSchoolStatus,
   useResendAdminInvitation,
+  useDeleteSchool,
 } from '../hooks/useSchools';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
 export function SchoolDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const { data: school, isLoading, isError, error, refetch } = useSchool(id);
   const changeStatusMutation = useChangeSchoolStatus();
   const resendInviteMutation = useResendAdminInvitation();
+  const deleteMutation = useDeleteSchool();
 
   if (isLoading) {
     return (
@@ -62,6 +68,11 @@ export function SchoolDetailsPage() {
 
   const handleResendInvite = async () => {
     await resendInviteMutation.mutateAsync(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    await deleteMutation.mutateAsync(id);
+    navigate('/schools');
   };
 
   return (
@@ -110,6 +121,16 @@ export function SchoolDetailsPage() {
               Edit Profile
             </Button>
           </Link>
+
+          <Button
+            variant="danger"
+            size="sm"
+            leftIcon={Trash2}
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="text-xs"
+          >
+            Delete School
+          </Button>
         </div>
       </div>
 
@@ -205,6 +226,52 @@ export function SchoolDetailsPage() {
         onConfirm={handleConfirmStatusChange}
         isLoading={changeStatusMutation.isPending}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirm School Deletion"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-danger-50 text-danger-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-text-primary font-medium">
+                Are you sure you want to delete school{' '}
+                <span className="font-bold text-danger-700">
+                  "{school?.name}"
+                </span>{' '}
+                ({school?.schoolCode})?
+              </p>
+              <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                This will soft-delete the school and deactivate all associated school user accounts. This action is restricted to Super Administrators.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleConfirmDelete}
+              isLoading={deleteMutation.isPending}
+            >
+              Delete School
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

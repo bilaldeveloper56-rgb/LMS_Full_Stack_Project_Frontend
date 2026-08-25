@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Building2, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
-import { Breadcrumb, Button, Pagination, Card } from '@/components/ui';
+import { Breadcrumb, Button, Pagination, Card, Modal } from '@/components/ui';
 import { ErrorState } from '@/components/feedback';
 import { SchoolFilters } from '../components/SchoolFilters';
 import { SchoolTable } from '../components/SchoolTable';
@@ -11,6 +11,7 @@ import {
   useSchoolStats,
   useChangeSchoolStatus,
   useResendAdminInvitation,
+  useDeleteSchool,
 } from '../hooks/useSchools';
 
 export function SchoolsPage() {
@@ -24,11 +25,13 @@ export function SchoolsPage() {
   });
 
   const [selectedSchoolForStatus, setSelectedSchoolForStatus] = useState(null);
+  const [schoolToDelete, setSchoolToDelete] = useState(null);
 
   const { data, isLoading, isError, error, refetch } = useSchools(filters);
   const { data: statsData } = useSchoolStats();
   const changeStatusMutation = useChangeSchoolStatus();
   const resendInviteMutation = useResendAdminInvitation();
+  const deleteSchoolMutation = useDeleteSchool();
 
   const schools = data?.schools || [];
   const pagination = data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 1 };
@@ -61,6 +64,13 @@ export function SchoolsPage() {
 
   const handleResendInvite = async (id) => {
     await resendInviteMutation.mutateAsync(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!schoolToDelete) return;
+    const id = schoolToDelete._id || schoolToDelete.id;
+    await deleteSchoolMutation.mutateAsync(id);
+    setSchoolToDelete(null);
   };
 
   return (
@@ -151,6 +161,7 @@ export function SchoolsPage() {
             schools={schools}
             onChangeStatus={(school) => setSelectedSchoolForStatus(school)}
             onResendInvite={handleResendInvite}
+            onDelete={(school) => setSchoolToDelete(school)}
             isLoading={isLoading}
           />
 
@@ -176,6 +187,52 @@ export function SchoolsPage() {
         onConfirm={handleConfirmStatusChange}
         isLoading={changeStatusMutation.isPending}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(schoolToDelete)}
+        onClose={() => setSchoolToDelete(null)}
+        title="Confirm School Deletion"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-danger-50 text-danger-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm text-text-primary font-medium">
+                Are you sure you want to delete school{' '}
+                <span className="font-bold text-danger-700">
+                  "{schoolToDelete?.name}"
+                </span>{' '}
+                ({schoolToDelete?.schoolCode})?
+              </p>
+              <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                This will soft-delete the school record and deactivate all associated user accounts. This action is restricted to Super Administrators.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSchoolToDelete(null)}
+              disabled={deleteSchoolMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleConfirmDelete}
+              isLoading={deleteSchoolMutation.isPending}
+            >
+              Delete School
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

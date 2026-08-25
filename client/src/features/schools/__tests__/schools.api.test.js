@@ -9,6 +9,7 @@ import {
   changeSchoolStatus,
   resendAdminInvitation,
   acceptInvitation,
+  deleteSchool,
 } from '../api/schools.api';
 
 vi.mock('@/config/api', () => ({
@@ -16,6 +17,7 @@ vi.mock('@/config/api', () => ({
     get: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -98,5 +100,14 @@ describe('Schools API Service', () => {
       confirmPassword: 'AdminPassword@123',
     });
     expect(activated.success).toBe(true);
+  });
+
+  it('deleteSchool should call DELETE /schools/:id', async () => {
+    api.delete.mockResolvedValueOnce({
+      data: { success: true, message: 'School deleted successfully' },
+    });
+    const res = await deleteSchool('s1');
+    expect(api.delete).toHaveBeenCalledWith('/schools/s1');
+    expect(res.success).toBe(true);
   });
 });

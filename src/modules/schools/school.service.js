@@ -550,3 +550,59 @@ export async function getSchoolStats() {
     },
   };
 }
+
+/**
+ * Soft-delete a school and deactivate its associated user accounts (SUPER_ADMIN only).
+ *
+ * @param {string} id - School ID
+ * @param {string} superAdminId - Authenticated Super Admin user ID
+ * @param {Object} [meta] - Request metadata (IP, UA)
+ * @returns {Promise<{ success: boolean, message: string }>}
+ */
+export async function deleteSchool(id, superAdminId, meta = {}) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw AppError.badRequest('Invalid school ID format');
+  }
+
+  const school = await School.findById(id);
+  if (!school || school.isDeleted) {
+    throw AppError.notFound('School not found');
+  }
+
+  school.isDeleted = true;
+  school.deletedAt = new Date();
+  school.deletedBy = superAdminId;
+  school.status = SCHOOL_STATUS.INACTIVE;
+  await school.save();
+
+  // Deactivate and soft-delete all user accounts belonging to this school
+  await User.updateMany(
+    { schoolId: school._id, isDeleted: false },
+    {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: superAdminId,
+      status: USER_STATUS.DISABLED,
+    }
+  );
+
+  await logAuditEvent({
+    event: AUTH_EVENTS.SCHOOL_DELETED,
+    userId: superAdminId,
+    schoolId: school._id,
+    entityType: 'School',
+    entityId: school._id,
+    details: {
+      name: school.name,
+      schoolCode: school.schoolCode,
+      email: school.email,
+    },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return {
+    success: true,
+    message: `School "${school.name}" and associated accounts have been deleted successfully`,
+  };
+}

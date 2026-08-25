@@ -18,6 +18,7 @@ vi.mock('../api/schools.api', () => ({
   updateSchool: vi.fn(),
   changeSchoolStatus: vi.fn(),
   resendAdminInvitation: vi.fn(),
+  deleteSchool: vi.fn(),
 }));
 
 const renderWithProviders = (ui) => {
@@ -44,6 +45,7 @@ describe('SchoolsPage Component', () => {
           PERMISSIONS.SCHOOLS_READ,
           PERMISSIONS.SCHOOLS_CREATE,
           PERMISSIONS.SCHOOLS_UPDATE,
+          PERMISSIONS.SCHOOLS_DELETE,
           PERMISSIONS.SCHOOLS_MANAGE,
         ],
       },
@@ -90,5 +92,16 @@ describe('SchoolsPage Component', () => {
     fireEvent.click(changeStatusBtn);
 
     expect(await screen.findByText('Change School Lifecycle Status')).toBeInTheDocument();
+  });
+
+  it('should open delete confirmation modal when Delete button is clicked', async () => {
+    renderWithProviders(<SchoolsPage />);
+
+    const deleteBtn = await screen.findByRole('button', { name: /Delete School/i });
+    expect(deleteBtn).toBeInTheDocument();
+    fireEvent.click(deleteBtn);
+
+    expect(await screen.findByText('Confirm School Deletion')).toBeInTheDocument();
+    expect(screen.getByText(/Are you sure you want to delete school/i)).toBeInTheDocument();
   });
 });

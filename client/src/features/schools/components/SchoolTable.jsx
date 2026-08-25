@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, Edit3, ShieldAlert, Mail, ExternalLink } from 'lucide-react';
+import { Eye, Edit3, ShieldAlert, Mail, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { SchoolStatusBadge } from './SchoolStatusBadge';
 import { formatDate } from '@/lib/utils';
@@ -11,12 +11,14 @@ import { formatDate } from '@/lib/utils';
  * @param {Array} props.schools
  * @param {Function} props.onChangeStatus
  * @param {Function} props.onResendInvite
+ * @param {Function} [props.onDelete]
  * @param {boolean} [props.isLoading=false]
  */
 export function SchoolTable({
   schools = [],
   onChangeStatus,
   onResendInvite,
+  onDelete,
   isLoading = false,
 }) {
   if (isLoading) {
@@ -138,6 +140,19 @@ export function SchoolTable({
                     >
                       <Mail className="w-4 h-4" />
                     </Button>
+
+                    {onDelete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-danger-600 hover:text-danger-700 hover:bg-danger-50"
+                        title="Delete School"
+                        aria-label="Delete School"
+                        onClick={() => onDelete(school)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </td>
               </tr>
