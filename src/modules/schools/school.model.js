@@ -12,7 +12,6 @@ const schoolSchema = new mongoose.Schema(
     schoolCode: {
       type: String,
       required: [true, 'School code is required'],
-      unique: true,
       uppercase: true,
       trim: true,
       minlength: [2, 'School code must be at least 2 characters'],
@@ -135,13 +134,27 @@ const schoolSchema = new mongoose.Schema(
   }
 );
 
-// --- Indexes ---
-schoolSchema.index({ email: 1 });
+// --- Indexes (Partial Unique: Uniqueness applies only to active/non-deleted schools) ---
+schoolSchema.index(
+  { schoolCode: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
+schoolSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
 schoolSchema.index({ status: 1 });
 schoolSchema.index({ createdAt: -1 });
 
-// --- Soft deletion filter ---
+// --- Soft deletion filter for queries and counts ---
 schoolSchema.pre(/^find/, function (next) {
+  if (this.getFilter().isDeleted === undefined) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
+
+schoolSchema.pre('countDocuments', function (next) {
   if (this.getFilter().isDeleted === undefined) {
     this.where({ isDeleted: { $ne: true } });
   }

@@ -46,4 +46,28 @@ describe('School Model Unit Tests', () => {
     assert.equal(json.isDeleted, undefined, 'isDeleted must be stripped in toJSON');
     assert.equal(json.__v, undefined);
   });
+
+  it('should configure partial unique indexes for schoolCode and email on active schools', () => {
+    const indexes = School.schema.indexes();
+    
+    // Find schoolCode index
+    const codeIndex = indexes.find(([fields]) => fields.schoolCode === 1);
+    assert.ok(codeIndex, 'schoolCode index must exist');
+    assert.equal(codeIndex[1].unique, true, 'schoolCode index must be unique');
+    assert.deepEqual(
+      codeIndex[1].partialFilterExpression,
+      { isDeleted: false },
+      'schoolCode index must have partialFilterExpression: { isDeleted: false }'
+    );
+
+    // Find email index
+    const emailIndex = indexes.find(([fields]) => fields.email === 1);
+    assert.ok(emailIndex, 'email index must exist');
+    assert.equal(emailIndex[1].unique, true, 'email index must be unique');
+    assert.deepEqual(
+      emailIndex[1].partialFilterExpression,
+      { isDeleted: false },
+      'email index must have partialFilterExpression: { isDeleted: false }'
+    );
+  });
 });

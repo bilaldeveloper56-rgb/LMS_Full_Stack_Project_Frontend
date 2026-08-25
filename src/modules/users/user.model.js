@@ -148,13 +148,23 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// --- Indexes ---
-userSchema.index({ email: 1 }, { unique: true });
+// --- Indexes (Partial Unique: Uniqueness applies only to active/non-deleted users) ---
+userSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
 userSchema.index({ schoolId: 1, role: 1 });
 userSchema.index({ schoolId: 1, status: 1 });
 
-// --- Exclude soft-deleted from default queries ---
+// --- Exclude soft-deleted from default queries and counts ---
 userSchema.pre(/^find/, function (next) {
+  if (this.getFilter().isDeleted === undefined) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
+
+userSchema.pre('countDocuments', function (next) {
   if (this.getFilter().isDeleted === undefined) {
     this.where({ isDeleted: { $ne: true } });
   }

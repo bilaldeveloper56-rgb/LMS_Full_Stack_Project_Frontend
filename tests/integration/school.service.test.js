@@ -259,4 +259,199 @@ describe('School Service Business Logic Tests', () => {
     assert.equal(stats.byStatus.suspended, 2);
     assert.equal(stats.byStatus.inactive, 1);
   });
+
+  it('should soft delete school and deactivate associated user accounts (Cases D & J)', async () => {
+    const originalFindById = School.findById;
+    const originalUpdateMany = User.updateMany;
+
+    let schoolSaved = false;
+    let usersUpdated = false;
+
+    const mockSchool = {
+      _id: '507f1f77bcf86cd799439099',
+      name: 'Alpha Academy',
+      schoolCode: 'ALPHA-01',
+      email: 'alpha@school.edu',
+      status: SCHOOL_STATUS.ACTIVE,
+      isDeleted: false,
+      save: async function () {
+        schoolSaved = true;
+        return this;
+      },
+    };
+
+    School.findById = (id) => Promise.resolve(mockSchool);
+    User.updateMany = (filter, update) => {
+      usersUpdated = true;
+      assert.equal(filter.schoolId, mockSchool._id);
+      assert.equal(update.isDeleted, true);
+      assert.equal(update.status, USER_STATUS.DISABLED);
+      return Promise.resolve({ modifiedCount: 3 });
+    };
+
+    const res = await schoolService.deleteSchool('507f1f77bcf86cd799439099', dummySuperAdminId);
+
+    assert.equal(res.success, true);
+    assert.equal(schoolSaved, true);
+    assert.equal(usersUpdated, true);
+    assert.equal(mockSchool.isDeleted, true);
+    assert.equal(mockSchool.status, SCHOOL_STATUS.INACTIVE);
+    assert.ok(mockSchool.deletedAt);
+    assert.equal(mockSchool.deletedBy, dummySuperAdminId);
+
+    School.findById = originalFindById;
+    User.updateMany = originalUpdateMany;
+  });
+
+  it('should safely handle deleting an already deleted or non-existent school (Case I)', async () => {
+    const originalFindById = School.findById;
+    School.findById = () => Promise.resolve(null);
+
+    await assert.rejects(
+      async () => {
+        await schoolService.deleteSchool('507f1f77bcf86cd799439099', dummySuperAdminId);
+      },
+      (err) => {
+        assert.equal(err.statusCode, 404);
+        assert.equal(err.message, 'School not found');
+        return true;
+      }
+    );
+
+    School.findById = originalFindById;
+  });
+
+  it('should verify soft-deleted school code and email become reusable while active records remain protected (Cases A through H & K)', async () => {
+    const originalFindOneSchool = School.findOne;
+    const originalFindOneUser = User.findOne;
+    const originalSchoolSave = School.prototype.save;
+    const originalUserSave = User.prototype.save;
+
+    // Active in-memory database simulation
+    const database = {
+      schools: [
+        {
+          _id: 'active-school-id',
+          name: 'Active School',
+          schoolCode: 'ACTIVE-01',
+          email: 'active@school.edu',
+          status: SCHOOL_STATUS.ACTIVE,
+          isDeleted: false,
+        },
+        {
+          _id: 'deleted-school-id',
+          name: 'Old Deleted School',
+          schoolCode: 'DELETED-01',
+          email: 'deleted@school.edu',
+          status: SCHOOL_STATUS.INACTIVE,
+          isDeleted: true,
+        },
+      ],
+      users: [
+        {
+          _id: 'active-user-id',
+          email: 'active-admin@school.edu',
+          isDeleted: false,
+        },
+        {
+          _id: 'deleted-user-id',
+          email: 'deleted-admin@school.edu',
+          isDeleted: true,
+        },
+      ],
+    };
+
+    // Mongoose query filter simulating pre(/^find/) hook: omits isDeleted: true records unless explicitly requested
+    School.findOne = function (filter) {
+      const match = database.schools.find((s) => {
+        if (!s.isDeleted && (s.schoolCode === filter.schoolCode || s.email === filter.email)) {
+          return true;
+        }
+        return false;
+      });
+      return Promise.resolve(match || null);
+    };
+
+    User.findOne = function (filter) {
+      const match = database.users.find((u) => {
+        if (!u.isDeleted && u.email === filter.email) {
+          return true;
+        }
+        return false;
+      });
+      return Promise.resolve(match || null);
+    };
+
+    School.prototype.save = function () {
+      this._id = 'new-school-' + Date.now();
+      database.schools.push({ ...this.toObject(), _id: this._id, isDeleted: false });
+      return Promise.resolve(this);
+    };
+
+    User.prototype.save = function () {
+      this._id = 'new-user-' + Date.now();
+      database.users.push({ ...this.toObject(), _id: this._id, isDeleted: false });
+      return Promise.resolve(this);
+    };
+
+    // Case B & C: Collision with active school code / email must FAIL
+    await assert.rejects(
+      () =>
+        schoolService.createSchoolWithAdmin(
+          { name: 'Duplicate School', schoolCode: 'ACTIVE-01', email: 'unique@school.edu' },
+          { firstName: 'A', lastName: 'B', email: 'unique-admin@school.edu' },
+          dummySuperAdminId
+        ),
+      (err) => {
+        assert.equal(err.statusCode, 409);
+        assert.ok(err.message.includes('already in use'));
+        return true;
+      }
+    );
+
+    await assert.rejects(
+      () =>
+        schoolService.createSchoolWithAdmin(
+          { name: 'Duplicate School', schoolCode: 'UNIQUE-01', email: 'active@school.edu' },
+          { firstName: 'A', lastName: 'B', email: 'unique-admin@school.edu' },
+          dummySuperAdminId
+        ),
+      (err) => {
+        assert.equal(err.statusCode, 409);
+        assert.ok(err.message.includes('already registered'));
+        return true;
+      }
+    );
+
+    // Case E & F: Reuse of deleted school code and email must SUCCEED
+    const createdWithReused = await schoolService.createSchoolWithAdmin(
+      { name: 'Reborn School', schoolCode: 'DELETED-01', email: 'deleted@school.edu' },
+      { firstName: 'Reborn', lastName: 'Admin', email: 'deleted-admin@school.edu' },
+      dummySuperAdminId
+    );
+
+    assert.ok(createdWithReused.school);
+    assert.equal(createdWithReused.school.schoolCode, 'DELETED-01');
+    assert.equal(createdWithReused.school.email, 'deleted@school.edu');
+    assert.equal(createdWithReused.admin.email, 'deleted-admin@school.edu');
+
+    // Case G & H: Creating another school with the now-active reused school's code must FAIL
+    await assert.rejects(
+      () =>
+        schoolService.createSchoolWithAdmin(
+          { name: 'Third School', schoolCode: 'DELETED-01', email: 'third@school.edu' },
+          { firstName: 'Third', lastName: 'Admin', email: 'third-admin@school.edu' },
+          dummySuperAdminId
+        ),
+      (err) => {
+        assert.equal(err.statusCode, 409);
+        return true;
+      }
+    );
+
+    School.findOne = originalFindOneSchool;
+    User.findOne = originalFindOneUser;
+    School.prototype.save = originalSchoolSave;
+    User.prototype.save = originalUserSave;
+  });
 });

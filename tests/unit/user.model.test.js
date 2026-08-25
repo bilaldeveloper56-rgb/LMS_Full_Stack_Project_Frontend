@@ -93,4 +93,16 @@ describe('User Model Unit Tests', () => {
     assert.equal(superAdmin.role, ROLES.SUPER_ADMIN);
     assert.equal(superAdmin.schoolId, null);
   });
+
+  it('should configure partial unique index for email on active users', () => {
+    const indexes = User.schema.indexes();
+    const emailIndex = indexes.find(([fields]) => fields.email === 1);
+    assert.ok(emailIndex, 'email index must exist');
+    assert.equal(emailIndex[1].unique, true, 'email index must be unique');
+    assert.deepEqual(
+      emailIndex[1].partialFilterExpression,
+      { isDeleted: false },
+      'email index must have partialFilterExpression: { isDeleted: false }'
+    );
+  });
 });
