@@ -48,6 +48,8 @@ const envSchema = z.object({
 
   // SMTP (Resend SMTP / standard SMTP — logs to console when unconfigured)
   EMAIL_PROVIDER: z.string().default('resend'),
+  // Resend HTTP API
+RESEND_API_KEY: z.string().default(''),
   SMTP_HOST: z.string().default(''),
   SMTP_PORT: z.coerce.number().default(465),
   SMTP_SECURE: z

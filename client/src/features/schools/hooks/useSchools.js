@@ -112,7 +112,7 @@ export function useResendAdminInvitation() {
   return useMutation({
     mutationFn: (id) => resendAdminInvitation(id),
     onSuccess: (data) => {
-      const invite = data?.invitation;
+      const invite = data?.invitation || data?.data?.invitation;
       if (invite && !invite.sent) {
         toast.warning('Invitation token refreshed, but email could not be delivered.');
       } else {

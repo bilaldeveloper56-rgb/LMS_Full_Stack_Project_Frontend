@@ -1,115 +1,175 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 
-let cachedTransporter = null;
+let cachedResendClient = null;
 
 /**
- * Creates or retrieves the cached Nodemailer transporter.
- * Supports Resend SMTP (e.g. smtp.resend.com, port 465, secure SSL/TLS)
- * or standard SMTP configurations.
+ * Creates or retrieves the cached Resend HTTP API client.
  *
- * @returns {import('nodemailer').Transporter | null}
+ * @returns {Resend | null}
  */
-export const getTransporter = () => {
-  if (cachedTransporter === false) {
+export const getResendClient = () => {
+  if (cachedResendClient === false) {
     return null;
   }
 
-  if (cachedTransporter) {
-    return cachedTransporter;
+  if (cachedResendClient) {
+    return cachedResendClient;
   }
 
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
+  if (!env.RESEND_API_KEY) {
     return null;
   }
 
-  const isSecure = typeof env.SMTP_SECURE === 'boolean' ? env.SMTP_SECURE : Number(env.SMTP_PORT) === 465;
+  cachedResendClient = new Resend(env.RESEND_API_KEY);
 
-  cachedTransporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: Number(env.SMTP_PORT),
-    secure: isSecure,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASSWORD,
-    },
-    // Safe network timeouts
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
-
-  return cachedTransporter;
+  return cachedResendClient;
 };
 
 /**
- * Override or inject a transporter (primarily used in automated testing).
- * @param {import('nodemailer').Transporter | null} transporter
+ * Override or inject a Resend client.
+ * Primarily used in automated tests.
+ *
+ * @param {Resend | null | false} client
  */
-export const setTransporter = (transporter) => {
-  cachedTransporter = transporter;
+export const setResendClient = (client) => {
+  cachedResendClient = client;
 };
 
 /**
- * Reset the cached transporter instance.
+ * Reset the cached Resend client.
  */
-export const resetTransporter = () => {
-  cachedTransporter = null;
+export const resetResendClient = () => {
+  cachedResendClient = null;
 };
 
 /**
- * Send an email using Nodemailer with Resend SMTP or mock logger fallback.
+ * Send an email using the Resend HTTP API.
  *
  * @param {Object} options
- * @param {string} options.to - Recipient email address
- * @param {string} options.subject - Email subject line
- * @param {string} options.html - HTML body content
- * @param {string} [options.text] - Plaintext fallback content
- * @returns {Promise<{ success: boolean, messageId?: string, error?: string }>}
+ * @param {string} options.to
+ * @param {string} options.subject
+ * @param {string} options.html
+ * @param {string} [options.text]
+ *
+ * @returns {Promise<{
+ *   success: boolean,
+ *   messageId?: string,
+ *   error?: string
+ * }>}
  */
 export const sendEmail = async ({ to, subject, html, text }) => {
   if (!to || !subject) {
-    logger.warn('Email sending skipped: missing recipient or subject');
-    return { success: false, error: 'Missing recipient or subject' };
-  }
-
-  const transporter = getTransporter();
-
-  // Development/Test mock mode when SMTP credentials are not configured
-  if (!transporter) {
-    logger.info('📧 Email (SMTP not configured — mock mode):', {
-      to,
-      subject,
+    logger.warn('Email sending skipped: missing recipient or subject', {
+      recipient: to || null,
+      subject: subject || null,
     });
-    return { success: true, messageId: 'mock-delivery-id' };
+
+    return {
+      success: false,
+      error: 'Missing recipient or subject',
+    };
   }
+
+  const resend = getResendClient();
+
+  /**
+   * IMPORTANT:
+   * Never report fake success in production.
+   *
+   * If the Resend API key is missing, the email was NOT sent.
+   */
+  if (!resend) {
+    logger.error('RESEND_EMAIL_FAILED: Resend API is not configured', {
+      recipient: to,
+      provider: 'resend',
+      from: env.SMTP_FROM,
+      reason: 'RESEND_API_KEY is missing',
+    });
+
+    return {
+      success: false,
+      error: 'Resend API is not configured',
+    };
+  }
+
+  logger.info('RESEND_EMAIL_ATTEMPT', {
+    recipient: to,
+    provider: 'resend',
+    from: env.SMTP_FROM,
+    subject,
+  });
 
   try {
-    const info = await transporter.sendMail({
+    const payload = {
       from: env.SMTP_FROM,
-      to,
+      to: [to],
       subject,
       html,
-      text,
-    });
+    };
 
-    logger.info(`📧 EMAIL_ACCEPTED_BY_PROVIDER: successfully sent to ${to}: "${subject}"`, {
-      provider: env.EMAIL_PROVIDER || 'resend',
-      from: env.SMTP_FROM,
-      messageId: info.messageId,
+    if (text) {
+      payload.text = text;
+    }
+
+    const { data, error } = await resend.emails.send(payload);
+
+    if (error) {
+      logger.error('RESEND_EMAIL_FAILED', {
+        recipient: to,
+        provider: 'resend',
+        from: env.SMTP_FROM,
+        subject,
+        error: error.message || String(error),
+      });
+
+      return {
+        success: false,
+        error: error.message || 'Resend API rejected the email',
+      };
+    }
+
+    if (!data?.id) {
+      logger.error('RESEND_EMAIL_FAILED', {
+        recipient: to,
+        provider: 'resend',
+        from: env.SMTP_FROM,
+        subject,
+        error: 'Resend API returned no message ID',
+      });
+
+      return {
+        success: false,
+        error: 'Resend API returned no message ID',
+      };
+    }
+
+    logger.info('EMAIL_ACCEPTED_BY_RESEND', {
       recipient: to,
+      provider: 'resend',
+      from: env.SMTP_FROM,
+      subject,
+      messageId: data.id,
     });
 
-    return { success: true, messageId: info.messageId };
+    return {
+      success: true,
+      messageId: data.id,
+    };
   } catch (error) {
-    // Log safe error message without credentials or tokens
-    logger.error(`❌ EMAIL_SEND_FAILED for recipient ${to}: ${error.message}`, {
-      provider: env.EMAIL_PROVIDER || 'resend',
-      from: env.SMTP_FROM,
+    logger.error('RESEND_EMAIL_EXCEPTION', {
       recipient: to,
-      error: error.message,
+      provider: 'resend',
+      from: env.SMTP_FROM,
+      subject,
+      error: error?.message || String(error),
     });
-    return { success: false, error: error.message };
+
+    return {
+      success: false,
+      error: error?.message || 'Unexpected Resend API error',
+    };
   }
 };

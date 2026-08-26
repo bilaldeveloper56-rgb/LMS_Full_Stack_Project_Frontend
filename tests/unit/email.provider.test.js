@@ -2,22 +2,22 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   sendEmail,
-  getTransporter,
-  setTransporter,
-  resetTransporter,
+  getResendClient,
+  setResendClient,
+  resetResendClient,
 } from '../../src/providers/email.provider.js';
 
-describe('Email Provider Unit & Security Tests', () => {
+describe('Email Provider Unit & Security Tests (Resend HTTP API)', () => {
   beforeEach(() => {
-    resetTransporter();
+    resetResendClient();
   });
 
   afterEach(() => {
-    resetTransporter();
+    resetResendClient();
   });
 
-  it('should return mock success when SMTP is unconfigured (development/test mode)', async () => {
-    setTransporter(false); // Explicitly simulate unconfigured SMTP
+  it('should return error when Resend API is not configured', async () => {
+    setResendClient(false); // Explicitly simulate unconfigured Resend
     const result = await sendEmail({
       to: 'teacher@school.edu',
       subject: 'Welcome to School ERP',
@@ -25,8 +25,8 @@ describe('Email Provider Unit & Security Tests', () => {
       text: 'Welcome!',
     });
 
-    assert.equal(result.success, true);
-    assert.equal(result.messageId, 'mock-delivery-id');
+    assert.equal(result.success, false);
+    assert.equal(result.error, 'Resend API is not configured');
   });
 
   it('should abort safely when recipient or subject is missing', async () => {
@@ -47,17 +47,19 @@ describe('Email Provider Unit & Security Tests', () => {
     assert.equal(resultNoSubj.error, 'Missing recipient or subject');
   });
 
-  it('should send email via configured Nodemailer transporter', async () => {
-    let sentMailOptions = null;
+  it('should send email via configured Resend client', async () => {
+    let sentOptions = null;
 
-    const mockTransporter = {
-      sendMail: async (options) => {
-        sentMailOptions = options;
-        return { messageId: '<msg-12345@resend.com>' };
+    const mockResend = {
+      emails: {
+        send: async (options) => {
+          sentOptions = options;
+          return { data: { id: 'resend-msg-12345' }, error: null };
+        },
       },
     };
 
-    setTransporter(mockTransporter);
+    setResendClient(mockResend);
 
     const result = await sendEmail({
       to: 'parent@domain.com',
@@ -67,21 +69,24 @@ describe('Email Provider Unit & Security Tests', () => {
     });
 
     assert.equal(result.success, true);
-    assert.equal(result.messageId, '<msg-12345@resend.com>');
-    assert.equal(sentMailOptions.to, 'parent@domain.com');
-    assert.equal(sentMailOptions.subject, 'Fee Challan Generated');
-    assert.equal(sentMailOptions.html, '<h1>Invoice</h1>');
-    assert.equal(sentMailOptions.text, 'Invoice text');
+    assert.equal(result.messageId, 'resend-msg-12345');
+    assert.deepEqual(sentOptions.to, ['parent@domain.com']);
+    assert.equal(sentOptions.subject, 'Fee Challan Generated');
+    assert.equal(sentOptions.html, '<h1>Invoice</h1>');
+    assert.equal(sentOptions.text, 'Invoice text');
   });
 
-  it('should handle SMTP transmission failure gracefully without crashing', async () => {
-    const mockFailingTransporter = {
-      sendMail: async () => {
-        throw new Error('SMTP Connection timeout: 465 to smtp.resend.com');
+  it('should handle Resend API error response gracefully', async () => {
+    const mockFailingResend = {
+      emails: {
+        send: async () => ({
+          data: null,
+          error: { message: 'Domain lmsprime.online is not verified' },
+        }),
       },
     };
 
-    setTransporter(mockFailingTransporter);
+    setResendClient(mockFailingResend);
 
     const result = await sendEmail({
       to: 'student@domain.com',
@@ -90,19 +95,42 @@ describe('Email Provider Unit & Security Tests', () => {
     });
 
     assert.equal(result.success, false);
-    assert.ok(result.error.includes('SMTP Connection timeout'));
+    assert.equal(result.error, 'Domain lmsprime.online is not verified');
+  });
+
+  it('should handle unexpected thrown exceptions gracefully without crashing', async () => {
+    const mockExceptionResend = {
+      emails: {
+        send: async () => {
+          throw new Error('Resend HTTP Connection Timeout');
+        },
+      },
+    };
+
+    setResendClient(mockExceptionResend);
+
+    const result = await sendEmail({
+      to: 'student@domain.com',
+      subject: 'Quiz Notification',
+      html: '<p>Quiz ready</p>',
+    });
+
+    assert.equal(result.success, false);
+    assert.equal(result.error, 'Resend HTTP Connection Timeout');
   });
 
   it('should ensure sensitive reset token is not logged in error messages', async () => {
     const sensitiveToken = 'super-secret-token-abcdef1234567890';
-    const mockFailingTransporter = {
-      sendMail: async (options) => {
-        // Even if transporter throws an error, the provider catches it cleanly
-        throw new Error('535 Authentication failed');
+    const mockFailingResend = {
+      emails: {
+        send: async () => ({
+          data: null,
+          error: { message: 'API key invalid' },
+        }),
       },
     };
 
-    setTransporter(mockFailingTransporter);
+    setResendClient(mockFailingResend);
 
     const result = await sendEmail({
       to: 'user@school.edu',
@@ -111,22 +139,24 @@ describe('Email Provider Unit & Security Tests', () => {
     });
 
     assert.equal(result.success, false);
-    assert.equal(result.error, '535 Authentication failed');
-    // Error message must not contain token or credentials
+    assert.equal(result.error, 'API key invalid');
+    // Error message must not contain token
     assert.ok(!result.error.includes(sensitiveToken));
   });
 
-  it('should use Resend sandbox onboarding sender default in from header', async () => {
+  it('should pass configured sender address in from field', async () => {
     let capturedFrom = null;
 
-    const mockTransporter = {
-      sendMail: async (options) => {
-        capturedFrom = options.from;
-        return { messageId: '<msg-sandbox-123@resend.com>' };
+    const mockResend = {
+      emails: {
+        send: async (options) => {
+          capturedFrom = options.from;
+          return { data: { id: 'msg-sandbox-123' }, error: null };
+        },
       },
     };
 
-    setTransporter(mockTransporter);
+    setResendClient(mockResend);
 
     const result = await sendEmail({
       to: 'developer@example.com',
@@ -135,6 +165,6 @@ describe('Email Provider Unit & Security Tests', () => {
     });
 
     assert.equal(result.success, true);
-    assert.ok(capturedFrom.includes('resend.dev') || capturedFrom.includes('@'));
+    assert.ok(capturedFrom && capturedFrom.includes('@'));
   });
 });
