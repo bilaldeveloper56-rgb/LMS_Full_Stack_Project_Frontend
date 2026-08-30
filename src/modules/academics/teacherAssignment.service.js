@@ -47,56 +47,88 @@ export async function createTeacherAssignment(data, user, meta = {}) {
     throw AppError.notFound('Class not found in this school');
   }
 
-  // 5. Verify section and verify it belongs to the class
-  const section = await Section.findOne({ _id: data.sectionId, classId: data.classId, schoolId });
-  if (!section) {
-    throw AppError.notFound('Section not found or does not belong to the selected class');
-  }
-
-  // 6. Verify subject
+  // 5. Verify subject
   const subject = await Subject.findOne({ _id: data.subjectId, schoolId });
   if (!subject) {
     throw AppError.notFound('Subject not found in this school');
   }
 
-  // 7. Check duplicate assignment
-  const existing = await TeacherAssignment.findOne({
-    schoolId,
-    academicSessionId: data.academicSessionId,
-    teacherId: data.teacherId,
-    classId: data.classId,
-    sectionId: data.sectionId,
-    subjectId: data.subjectId,
-  });
-  if (existing) {
-    throw AppError.conflict('Teacher is already assigned to this subject, class, and section');
+  // Support one or multiple section IDs
+  const targetSectionIds = Array.isArray(data.sectionIds) && data.sectionIds.length > 0
+    ? [...new Set(data.sectionIds)]
+    : data.sectionId
+    ? [data.sectionId]
+    : [];
+
+  if (targetSectionIds.length === 0) {
+    throw AppError.badRequest('At least one section ID is required');
   }
 
-  const assignment = new TeacherAssignment({
-    ...data,
-    schoolId,
-    createdBy: user.id,
-  });
+  const createdAssignments = [];
 
-  await assignment.save();
+  for (const secId of targetSectionIds) {
+    // Verify section belongs to class and school
+    const section = await Section.findOne({ _id: secId, classId: data.classId, schoolId });
+    if (!section) {
+      throw AppError.notFound(`Section not found or does not belong to the selected class`);
+    }
 
-  await logAuditEvent({
-    event: AUTH_EVENTS.TEACHER_ASSIGNMENT_CREATED,
-    userId: user.id,
-    schoolId,
-    entityType: 'TeacherAssignment',
-    entityId: assignment._id,
-    details: {
-      teacherId: assignment.teacherId,
-      classId: assignment.classId,
-      sectionId: assignment.sectionId,
-      subjectId: assignment.subjectId,
-    },
-    ipAddress: meta.ipAddress,
-    userAgent: meta.userAgent,
-  });
+    // Check duplicate assignment
+    const existing = await TeacherAssignment.findOne({
+      schoolId,
+      academicSessionId: data.academicSessionId,
+      teacherId: data.teacherId,
+      classId: data.classId,
+      sectionId: secId,
+      subjectId: data.subjectId,
+    });
 
-  return assignment.toJSON();
+    if (existing) {
+      if (targetSectionIds.length === 1) {
+        throw AppError.conflict('Teacher is already assigned to this subject, class, and section');
+      }
+      continue;
+    }
+
+    const assignment = new TeacherAssignment({
+      ...data,
+      sectionId: secId,
+      schoolId,
+      createdBy: user.id,
+    });
+
+    await assignment.save();
+
+    await logAuditEvent({
+      event: AUTH_EVENTS.TEACHER_ASSIGNMENT_CREATED,
+      userId: user.id,
+      schoolId,
+      entityType: 'TeacherAssignment',
+      entityId: assignment._id,
+      details: {
+        teacherId: assignment.teacherId,
+        classId: assignment.classId,
+        sectionId: assignment.sectionId,
+        subjectId: assignment.subjectId,
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+
+    createdAssignments.push(assignment);
+  }
+
+  if (createdAssignments.length === 0) {
+    throw AppError.conflict('Teacher is already assigned to all selected sections for this subject and class');
+  }
+
+  return createdAssignments.length === 1
+    ? createdAssignments[0].toJSON()
+    : {
+        ...createdAssignments[0].toJSON(),
+        assignedSectionsCount: createdAssignments.length,
+        assignments: createdAssignments.map((a) => a.toJSON()),
+      };
 }
 
 export async function getTeacherAssignments(params, user) {

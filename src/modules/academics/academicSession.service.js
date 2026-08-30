@@ -33,16 +33,17 @@ export async function createAcademicSession(data, user, meta = {}) {
     throw AppError.conflict(`Academic session with name '${data.name}' already exists in this school`);
   }
 
-  // If marked current or ACTIVE, unset previous current sessions
+  // If marked current or ACTIVE, transition previous active/current sessions to COMPLETED & not current
   if (data.isCurrent || data.status === SESSION_STATUS.ACTIVE) {
     await AcademicSession.updateMany(
-      { schoolId, isCurrent: true },
-      { isCurrent: false }
+      { schoolId, $or: [{ isCurrent: true }, { status: SESSION_STATUS.ACTIVE }] },
+      { isCurrent: false, status: SESSION_STATUS.COMPLETED }
     );
   }
 
   const session = new AcademicSession({
     ...data,
+    ...(data.status === SESSION_STATUS.ACTIVE ? { isCurrent: true } : {}),
     schoolId,
     createdBy: user.id,
     updatedBy: user.id,
@@ -164,12 +165,16 @@ export async function updateAcademicSession(id, updates, user, meta = {}) {
   if (updates.endDate) session.endDate = new Date(updates.endDate);
   if (updates.status) session.status = updates.status;
 
-  if (updates.isCurrent) {
+  if (updates.isCurrent || updates.status === SESSION_STATUS.ACTIVE) {
     await AcademicSession.updateMany(
-      { schoolId: session.schoolId, _id: { $ne: session._id } },
-      { isCurrent: false }
+      { schoolId: session.schoolId, _id: { $ne: session._id }, $or: [{ isCurrent: true }, { status: SESSION_STATUS.ACTIVE }] },
+      { isCurrent: false, status: SESSION_STATUS.COMPLETED }
     );
-    session.isCurrent = true;
+    if (updates.status === SESSION_STATUS.ACTIVE) {
+      session.isCurrent = true;
+    } else if (updates.isCurrent) {
+      session.isCurrent = true;
+    }
   } else if (updates.isCurrent === false) {
     session.isCurrent = false;
   }
@@ -246,8 +251,8 @@ export async function changeSessionStatus(id, newStatus, user, meta = {}) {
 
   if (newStatus === SESSION_STATUS.ACTIVE) {
     await AcademicSession.updateMany(
-      { schoolId: session.schoolId, _id: { $ne: session._id } },
-      { isCurrent: false }
+      { schoolId: session.schoolId, _id: { $ne: session._id }, $or: [{ isCurrent: true }, { status: SESSION_STATUS.ACTIVE }] },
+      { isCurrent: false, status: SESSION_STATUS.COMPLETED }
     );
     session.isCurrent = true;
   }
@@ -284,8 +289,8 @@ export async function setCurrentSession(id, user, meta = {}) {
   }
 
   await AcademicSession.updateMany(
-    { schoolId: session.schoolId, _id: { $ne: session._id } },
-    { isCurrent: false }
+    { schoolId: session.schoolId, _id: { $ne: session._id }, $or: [{ isCurrent: true }, { status: SESSION_STATUS.ACTIVE }] },
+    { isCurrent: false, status: SESSION_STATUS.COMPLETED }
   );
 
   session.isCurrent = true;

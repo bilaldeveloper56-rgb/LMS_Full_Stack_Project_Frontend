@@ -89,10 +89,11 @@ export function truncate(text, maxLength = 50) {
 /**
  * Extract readable error message from API error response.
  * @param {Error|object} error
+ * @param {string} [fallback='An unexpected error occurred.']
  * @returns {string}
  */
-export function getErrorMessage(error) {
-  if (!error) return 'An unexpected error occurred.';
+export function getErrorMessage(error, fallback = 'An unexpected error occurred.') {
+  if (!error) return fallback;
 
   // Axios error with backend response
   const data = error?.response?.data;
@@ -101,10 +102,15 @@ export function getErrorMessage(error) {
   }
   if (data?.message) return data.message;
 
+  // Network / connection errors
+  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    return 'There was a network issue connecting to the server. Please check your connection and try again.';
+  }
+
   // Standard Error
   if (error.message) return error.message;
 
-  return 'An unexpected error occurred.';
+  return fallback;
 }
 
 /**

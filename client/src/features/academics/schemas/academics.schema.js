@@ -102,20 +102,24 @@ export const subjectFormSchema = z.object({
 });
 
 /* ── Teacher Assignment Schema ── */
-export const teacherAssignmentSchema = z.object({
-  academicSessionId: z
-    .string({ required_error: 'Academic session is required' })
-    .regex(objectIdRegex, 'Invalid session ID format'),
-  teacherId: z
-    .string({ required_error: 'Teacher is required' })
-    .regex(objectIdRegex, 'Invalid teacher ID format'),
-  classId: z
-    .string({ required_error: 'Class is required' })
-    .regex(objectIdRegex, 'Invalid class ID format'),
-  sectionId: z
-    .string({ required_error: 'Section is required' })
-    .regex(objectIdRegex, 'Invalid section ID format'),
-  subjectId: z
-    .string({ required_error: 'Subject is required' })
-    .regex(objectIdRegex, 'Invalid subject ID format'),
-});
+export const teacherAssignmentSchema = z
+  .object({
+    academicSessionId: z
+      .string({ required_error: 'Academic session is required' })
+      .regex(objectIdRegex, 'Invalid session ID format'),
+    teacherId: z
+      .string({ required_error: 'Teacher is required' })
+      .regex(objectIdRegex, 'Invalid teacher ID format'),
+    classId: z
+      .string({ required_error: 'Class is required' })
+      .regex(objectIdRegex, 'Invalid class ID format'),
+    sectionId: z.string().regex(objectIdRegex, 'Invalid section ID format').optional().or(z.literal('')),
+    sectionIds: z.array(z.string().regex(objectIdRegex, 'Invalid section ID format')).optional(),
+    subjectId: z
+      .string({ required_error: 'Subject is required' })
+      .regex(objectIdRegex, 'Invalid subject ID format'),
+  })
+  .refine((data) => Boolean((data.sectionId && data.sectionId.length > 0) || (data.sectionIds && data.sectionIds.length > 0)), {
+    message: 'At least one section must be selected',
+    path: ['sectionId'],
+  });

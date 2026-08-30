@@ -69,7 +69,12 @@ export function useStudentAcademic(id, options = {}) {
 /**
  * Hook to fetch academic options (sessions, classes, sections) for form selects.
  */
-export function useAcademicOptions(selectedClassId = null) {
+export function useAcademicOptions(selectedSessionId = null, selectedClassId = null) {
+  // Support both useAcademicOptions(sessionId, classId) and legacy useAcademicOptions(classId)
+  const isSingleArg = selectedClassId === null;
+  const effectiveSessionId = isSingleArg ? null : selectedSessionId;
+  const effectiveClassId = isSingleArg ? selectedSessionId : selectedClassId;
+
   const sessionsQuery = useQuery({
     queryKey: ['academic-sessions', 'options'],
     queryFn: () => fetchAcademicSessions({ limit: 100 }),
@@ -77,26 +82,30 @@ export function useAcademicOptions(selectedClassId = null) {
   });
 
   const classesQuery = useQuery({
-    queryKey: ['classes', 'options'],
-    queryFn: () => fetchClasses({ limit: 100 }),
+    queryKey: ['classes', 'options', effectiveSessionId],
+    queryFn: () =>
+      fetchClasses(effectiveSessionId ? { academicSessionId: effectiveSessionId, limit: 100 } : { limit: 100 }),
     staleTime: 5 * 60 * 1000,
   });
 
   const sectionsQuery = useQuery({
-    queryKey: ['sections', 'options', selectedClassId],
-    queryFn: () => fetchSections({ classId: selectedClassId, limit: 100 }),
-    enabled: Boolean(selectedClassId),
+    queryKey: ['sections', 'options', effectiveClassId],
+    queryFn: () => fetchSections({ classId: effectiveClassId, limit: 100 }),
+    enabled: Boolean(effectiveClassId),
     staleTime: 5 * 60 * 1000,
   });
 
   return {
     sessions: sessionsQuery.data || [],
     classes: classesQuery.data || [],
-    sections: selectedClassId ? (sectionsQuery.data || []) : [],
+    sections: effectiveClassId ? (sectionsQuery.data || []) : [],
     isLoading: sessionsQuery.isLoading || classesQuery.isLoading,
-    isLoadingSections: Boolean(selectedClassId) && (sectionsQuery.isLoading || sectionsQuery.isFetching),
+    isLoadingSessions: sessionsQuery.isLoading,
+    isLoadingClasses: classesQuery.isLoading || classesQuery.isFetching,
+    isLoadingSections: Boolean(effectiveClassId) && (sectionsQuery.isLoading || sectionsQuery.isFetching),
     isSectionsError: sectionsQuery.isError,
     refetchSections: sectionsQuery.refetch,
+    refetchClasses: classesQuery.refetch,
   };
 }
 

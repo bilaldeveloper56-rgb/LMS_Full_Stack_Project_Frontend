@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Upload, X } from 'lucide-react';
+import {
+  Upload,
+  X,
+  GraduationCap,
+  Users,
+  User,
+  CheckCircle2,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   Input,
   Select,
   Button,
   Card,
-  Alert,
 } from '@/components/ui';
 import {
   studentFormSchema,
@@ -20,7 +26,14 @@ import { useAcademicOptions, useUploadAvatar } from '../hooks/useStudents';
 import { StudentAvatar } from './StudentAvatar';
 
 /**
- * StudentForm component for registration and editing.
+ * StudentForm component with 7-step dependent hierarchy:
+ * 1. Academic Session
+ * 2. Class (filtered by selected Session)
+ * 3. Section (filtered by selected Class)
+ * 4. Student Information
+ * 5. Parent / Guardian
+ * 6. Review & Verification
+ * 7. Create / Save Action
  *
  * @param {object} props
  * @param {object} [props.initialValues] - Existing values for edit mode
@@ -36,6 +49,9 @@ export function StudentForm({
   submitLabel = 'Save Student',
   onCancel,
 }) {
+  const [selectedSessionId, setSelectedSessionId] = useState(
+    initialValues.academicSessionId?._id || initialValues.academicSessionId || ''
+  );
   const [selectedClassId, setSelectedClassId] = useState(
     initialValues.classId?._id || initialValues.classId || ''
   );
@@ -47,10 +63,12 @@ export function StudentForm({
     sessions,
     classes,
     sections,
-    isLoading: isLoadingOptions,
+    isLoadingSessions,
+    isLoadingClasses,
     isLoadingSections,
+    isClassesError,
     isSectionsError,
-  } = useAcademicOptions(selectedClassId);
+  } = useAcademicOptions(selectedSessionId, selectedClassId);
   const uploadAvatarMutation = useUploadAvatar();
 
   const {
@@ -90,12 +108,54 @@ export function StudentForm({
 
   const firstNameWatch = watch('firstName');
   const lastNameWatch = watch('lastName');
+  const sessionWatch = watch('academicSessionId');
+  const classWatch = watch('classId');
+  const sectionWatch = watch('sectionId');
+
+  // Auto-select active session if available and none selected
+  useEffect(() => {
+    if (!selectedSessionId && sessions.length > 0) {
+      const activeSession = sessions.find((s) => s.isCurrent || s.status === 'ACTIVE') || sessions[0];
+      if (activeSession) {
+        const id = activeSession._id || activeSession.id;
+        setSelectedSessionId(id);
+        setValue('academicSessionId', id, { shouldValidate: true });
+      }
+    }
+  }, [sessions, selectedSessionId, setValue]);
+
+  // Keep state synced with form values
+  useEffect(() => {
+    if (sessionWatch && sessionWatch !== selectedSessionId) {
+      setSelectedSessionId(sessionWatch);
+    }
+  }, [sessionWatch, selectedSessionId]);
+
+  useEffect(() => {
+    if (classWatch && classWatch !== selectedClassId) {
+      setSelectedClassId(classWatch);
+    }
+  }, [classWatch, selectedClassId]);
+
+  const sessionRegistration = register('academicSessionId');
   const classRegistration = register('classId');
+  const sectionRegistration = register('sectionId');
+
+  const handleSessionChange = (e) => {
+    sessionRegistration.onChange(e);
+    const sessionId = e.target.value;
+    setSelectedSessionId(sessionId);
+    setValue('academicSessionId', sessionId, { shouldValidate: true });
+    setSelectedClassId('');
+    setValue('classId', '', { shouldValidate: true });
+    setValue('sectionId', '', { shouldValidate: true });
+  };
 
   const handleClassChange = (e) => {
     classRegistration.onChange(e);
     const classId = e.target.value;
     setSelectedClassId(classId);
+    setValue('classId', classId, { shouldValidate: true });
     setValue('sectionId', '', { shouldValidate: true });
   };
 
@@ -123,13 +183,153 @@ export function StudentForm({
     setValue('profileImage', '', { shouldValidate: true });
   };
 
+  const selectedSessionDoc = sessions.find((s) => (s._id || s.id) === (sessionWatch || selectedSessionId));
+  const selectedClassDoc = classes.find((c) => (c._id || c.id) === (classWatch || selectedClassId));
+  const selectedSectionDoc = sections.find((sec) => (sec._id || sec.id) === sectionWatch);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* 1. Profile Picture & Basic Info */}
+      {/* ── Steps 1, 2, 3: Dependent Academic Hierarchy ── */}
+      <Card className="p-6 border-l-4 border-l-primary-500">
+        <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+          <GraduationCap className="w-5 h-5 text-primary-600" />
+          <h2 className="text-base font-semibold text-text-primary">
+            1, 2, 3. Academic Placement (Dependent Selection)
+          </h2>
+        </div>
+
+        <p className="text-xs text-text-muted mb-4">
+          Select the Academic Session first, then the Class to load its available Sections.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* 1. Academic Session */}
+          <div>
+            <Select
+              label="1. Academic Session *"
+              disabled={isLoadingSessions}
+              error={errors.academicSessionId?.message}
+              options={[
+                { value: '', label: 'Select Academic Session' },
+                ...sessions.map((s) => ({
+                  value: s._id || s.id,
+                  label: `${s.name}${s.isCurrent || s.status === 'ACTIVE' ? ' (Active)' : ''}`,
+                })),
+              ]}
+              value={selectedSessionId}
+              {...sessionRegistration}
+              onChange={handleSessionChange}
+            />
+            {selectedSessionDoc && (
+              <p className="mt-1 text-[11px] text-text-muted">
+                Status: <span className="font-semibold">{selectedSessionDoc.status}</span>
+              </p>
+            )}
+          </div>
+
+          {/* 2. Class */}
+          <div>
+            <Select
+              label="2. Class *"
+              disabled={!selectedSessionId || isLoadingClasses}
+              error={errors.classId?.message}
+              options={[
+                {
+                  value: '',
+                  label: !selectedSessionId
+                    ? 'Select Session First'
+                    : isLoadingClasses
+                    ? 'Loading classes...'
+                    : classes.length === 0
+                    ? 'No classes in this session'
+                    : 'Select Class',
+                },
+                ...classes.map((c) => ({ value: c._id || c.id, label: c.name })),
+              ]}
+              value={selectedClassId}
+              {...classRegistration}
+              onChange={handleClassChange}
+            />
+            {isClassesError && (
+              <p className="mt-1 text-[11px] text-danger-600">Failed to load classes for session.</p>
+            )}
+          </div>
+
+          {/* 3. Section */}
+          <div>
+            <Select
+              label="3. Section *"
+              disabled={!selectedClassId || isLoadingSections || (Boolean(selectedClassId) && sections.length === 0)}
+              error={errors.sectionId?.message}
+              options={[
+                {
+                  value: '',
+                  label: !selectedClassId
+                    ? 'Select Class First'
+                    : isLoadingSections
+                    ? 'Loading sections...'
+                    : isSectionsError
+                    ? 'Unable to load sections'
+                    : sections.length === 0
+                    ? 'No sections in this class'
+                    : 'Select Section',
+                },
+                ...sections.map((sec) => ({
+                  value: sec._id || sec.id,
+                  label: sec.code ? `${sec.name} (${sec.code})` : sec.name,
+                })),
+              ]}
+              {...sectionRegistration}
+            />
+            {Boolean(selectedClassId) && !isLoadingSections && !isSectionsError && sections.length === 0 && (
+              <p className="mt-1.5 text-xs text-warning-700 bg-warning-50 border border-warning-200 p-2 rounded">
+                No sections available for this class.{' '}
+                <Link to="/classes" className="font-semibold underline hover:text-warning-900">
+                  Create a section first
+                </Link>{' '}
+                in Class Management.
+              </p>
+            )}
+            {Boolean(selectedClassId) && isSectionsError && (
+              <p className="mt-1.5 text-xs text-danger-700">
+                Unable to load sections. Please select the class again.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-border">
+          <Input
+            label="Roll Number"
+            placeholder="e.g. 15"
+            error={errors.rollNumber?.message}
+            {...register('rollNumber')}
+          />
+
+          <Input
+            label="Admission Date"
+            type="date"
+            error={errors.admissionDate?.message}
+            {...register('admissionDate')}
+          />
+
+          <Select
+            label="Enrollment Status *"
+            options={ENROLLMENT_STATUS_OPTIONS}
+            error={errors.enrollmentStatus?.message}
+            {...register('enrollmentStatus')}
+          />
+        </div>
+      </Card>
+
+      {/* ── 4: Student Information ── */}
       <Card className="p-6">
-        <h2 className="text-base font-semibold text-text-primary mb-4 pb-2 border-b border-border">
-          Personal Details
-        </h2>
+        <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+          <User className="w-5 h-5 text-primary-600" />
+          <h2 className="text-base font-semibold text-text-primary">
+            4. Student Information
+          </h2>
+        </div>
 
         <div className="flex flex-col sm:flex-row gap-6 mb-6 items-start sm:items-center">
           <div className="relative">
@@ -216,109 +416,8 @@ export function StudentForm({
             {...register('bloodGroup')}
           />
         </div>
-      </Card>
 
-      {/* 2. Academic & Enrollment Details */}
-      <Card className="p-6">
-        <h2 className="text-base font-semibold text-text-primary mb-4 pb-2 border-b border-border">
-          Academic Enrollment
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Select
-            label="Academic Session *"
-            disabled={isLoadingOptions}
-            error={errors.academicSessionId?.message}
-            options={[
-              { value: '', label: 'Select Session' },
-              ...sessions.map((s) => ({ value: s._id || s.id, label: s.name })),
-            ]}
-            {...register('academicSessionId')}
-          />
-
-          <Select
-            label="Class *"
-            disabled={isLoadingOptions}
-            error={errors.classId?.message}
-            options={[
-              { value: '', label: 'Select Class' },
-              ...classes.map((c) => ({ value: c._id || c.id, label: c.name })),
-            ]}
-            {...classRegistration}
-            onChange={handleClassChange}
-          />
-
-          <div>
-            <Select
-              label="Section *"
-              disabled={isLoadingOptions || !selectedClassId || isLoadingSections || (Boolean(selectedClassId) && sections.length === 0)}
-              error={errors.sectionId?.message}
-              options={[
-                {
-                  value: '',
-                  label: !selectedClassId
-                    ? 'Select Class First'
-                    : isLoadingSections
-                    ? 'Loading sections...'
-                    : isSectionsError
-                    ? 'Unable to load sections'
-                    : sections.length === 0
-                    ? 'No sections available for this class'
-                    : 'Select Section',
-                },
-                ...sections.map((sec) => ({
-                  value: sec._id || sec.id,
-                  label: sec.code ? `${sec.name} (${sec.code})` : sec.name,
-                })),
-              ]}
-              {...register('sectionId')}
-            />
-            {Boolean(selectedClassId) && !isLoadingSections && !isSectionsError && sections.length === 0 && (
-              <p className="mt-1.5 text-xs text-warning-700 bg-warning-50 border border-warning-200 p-2 rounded">
-                No sections available for this class.{' '}
-                <Link to="/academics/classes" className="font-semibold underline hover:text-warning-900">
-                  Please create a section first
-                </Link>{' '}
-                in Class Management.
-              </p>
-            )}
-            {Boolean(selectedClassId) && isSectionsError && (
-              <p className="mt-1.5 text-xs text-danger-700">
-                Unable to load sections. Please try selecting the class again.
-              </p>
-            )}
-          </div>
-
-          <Input
-            label="Roll Number"
-            placeholder="e.g. 15"
-            error={errors.rollNumber?.message}
-            {...register('rollNumber')}
-          />
-
-          <Input
-            label="Admission Date"
-            type="date"
-            error={errors.admissionDate?.message}
-            {...register('admissionDate')}
-          />
-
-          <Select
-            label="Enrollment Status *"
-            options={ENROLLMENT_STATUS_OPTIONS}
-            error={errors.enrollmentStatus?.message}
-            {...register('enrollmentStatus')}
-          />
-        </div>
-      </Card>
-
-      {/* 3. Contact & Address */}
-      <Card className="p-6">
-        <h2 className="text-base font-semibold text-text-primary mb-4 pb-2 border-b border-border">
-          Contact & Address
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
           <Input
             label="Student Email"
             type="email"
@@ -350,22 +449,25 @@ export function StudentForm({
         </div>
       </Card>
 
-      {/* 4. Emergency Contacts */}
+      {/* ── 5: Parent / Guardian ── */}
       <Card className="p-6">
-        <h2 className="text-base font-semibold text-text-primary mb-4 pb-2 border-b border-border">
-          Emergency Contact
-        </h2>
+        <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+          <Users className="w-5 h-5 text-primary-600" />
+          <h2 className="text-base font-semibold text-text-primary">
+            5. Parent / Guardian Details
+          </h2>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Emergency Contact Name"
+            label="Guardian / Parent Full Name *"
             placeholder="e.g. Guardian / Parent Name"
             error={errors.emergencyContactName?.message}
             {...register('emergencyContactName')}
           />
 
           <Input
-            label="Emergency Contact Phone"
+            label="Guardian / Parent Contact Phone *"
             placeholder="+1 (555) 000-0000"
             error={errors.emergencyContactPhone?.message}
             {...register('emergencyContactPhone')}
@@ -373,7 +475,40 @@ export function StudentForm({
         </div>
       </Card>
 
-      {/* Form Action Controls */}
+      {/* ── 6: Review & Verification Summary ── */}
+      <Card className="p-6 bg-surface-muted/40 border border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <CheckCircle2 className="w-5 h-5 text-success-600" />
+          <h2 className="text-base font-semibold text-text-primary">
+            6. Cohort Review & Verification
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="p-3 bg-surface rounded border border-border">
+            <span className="text-text-muted block">Academic Session:</span>
+            <span className="font-semibold text-text-primary text-sm">
+              {selectedSessionDoc?.name || '—'}
+            </span>
+          </div>
+
+          <div className="p-3 bg-surface rounded border border-border">
+            <span className="text-text-muted block">Assigned Class:</span>
+            <span className="font-semibold text-text-primary text-sm">
+              {selectedClassDoc?.name || '—'}
+            </span>
+          </div>
+
+          <div className="p-3 bg-surface rounded border border-border">
+            <span className="text-text-muted block">Assigned Section:</span>
+            <span className="font-semibold text-text-primary text-sm">
+              {selectedSectionDoc?.name ? `${selectedSectionDoc.name} (${selectedSectionDoc.code || ''})` : '—'}
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {/* ── 7: Create Action Controls ── */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
         {onCancel && (
           <Button

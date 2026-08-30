@@ -27,7 +27,19 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+    let socketUrl = import.meta.env.VITE_SOCKET_URL;
+    if (!socketUrl) {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      if (apiBase.startsWith('http://') || apiBase.startsWith('https://')) {
+        try {
+          socketUrl = new URL(apiBase).origin;
+        } catch {
+          socketUrl = window.location.origin;
+        }
+      } else {
+        socketUrl = window.location.origin;
+      }
+    }
     const token = getAccessToken();
 
     const socket = io(socketUrl, {

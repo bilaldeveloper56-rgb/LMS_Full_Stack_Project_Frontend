@@ -63,6 +63,8 @@ export function AssignTeacherModal({
     },
   });
 
+  const [selectedSectionIds, setSelectedSectionIds] = useState([]);
+
   useEffect(() => {
     if (isOpen) {
       const currentSession = sessions.find((s) => s.isCurrent);
@@ -71,9 +73,11 @@ export function AssignTeacherModal({
         teacherId: '',
         classId: '',
         sectionId: '',
+        sectionIds: [],
         subjectId: '',
       });
       setSelectedClassId('');
+      setSelectedSectionIds([]);
     }
   }, [isOpen, reset, sessions]);
 
@@ -83,17 +87,42 @@ export function AssignTeacherModal({
     classRegistration.onChange(e);
     const classId = e.target.value;
     setSelectedClassId(classId);
+    setSelectedSectionIds([]);
     setValue('sectionId', '', { shouldValidate: true });
+    setValue('sectionIds', [], { shouldValidate: true });
+  };
+
+  const handleToggleSection = (sectionId) => {
+    const next = selectedSectionIds.includes(sectionId)
+      ? selectedSectionIds.filter((id) => id !== sectionId)
+      : [...selectedSectionIds, sectionId];
+    setSelectedSectionIds(next);
+    setValue('sectionIds', next, { shouldValidate: true });
+    setValue('sectionId', next[0] || '', { shouldValidate: true });
+  };
+
+  const handleSelectAllSections = () => {
+    const allIds = sections.map((s) => s._id || s.id);
+    const next = selectedSectionIds.length === allIds.length ? [] : allIds;
+    setSelectedSectionIds(next);
+    setValue('sectionIds', next, { shouldValidate: true });
+    setValue('sectionId', next[0] || '', { shouldValidate: true });
   };
 
   const handleFormSubmit = async (formData) => {
-    await onSubmit(formData);
+    const payload = {
+      ...formData,
+      sectionIds: selectedSectionIds.length > 0 ? selectedSectionIds : [formData.sectionId].filter(Boolean),
+      sectionId: selectedSectionIds[0] || formData.sectionId,
+    };
+    await onSubmit(payload);
     reset();
     onClose();
   };
 
   const handleClose = () => {
     reset();
+    setSelectedSectionIds([]);
     onClose();
   };
 
@@ -149,31 +178,77 @@ export function AssignTeacherModal({
           {...register('subjectId')}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Class Select */}
-          <Select
-            label="Class *"
-            disabled={isLoadingClasses}
-            error={errors.classId?.message}
-            options={[
-              { value: '', label: 'Select Class' },
-              ...classes.map((c) => ({ value: c._id || c.id, label: c.name })),
-            ]}
-            {...classRegistration}
-            onChange={handleClassChange}
-          />
+        {/* Class Select */}
+        <Select
+          label="Class *"
+          disabled={isLoadingClasses}
+          error={errors.classId?.message}
+          options={[
+            { value: '', label: 'Select Class' },
+            ...classes.map((c) => ({ value: c._id || c.id, label: c.name })),
+          ]}
+          {...classRegistration}
+          onChange={handleClassChange}
+        />
 
-          {/* Section Select */}
-          <Select
-            label="Section *"
-            disabled={isLoadingSections || !selectedClassId}
-            error={errors.sectionId?.message}
-            options={[
-              { value: '', label: selectedClassId ? 'Select Section' : 'Select Class First' },
-              ...sections.map((sec) => ({ value: sec._id || sec.id, label: sec.name })),
-            ]}
-            {...register('sectionId')}
-          />
+        {/* Multi-Section Selection */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-text-primary">
+              Sections * {selectedSectionIds.length > 0 && `(${selectedSectionIds.length} selected)`}
+            </label>
+            {selectedClassId && sections.length > 1 && (
+              <button
+                type="button"
+                onClick={handleSelectAllSections}
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              >
+                {selectedSectionIds.length === sections.length ? 'Deselect All' : 'Select All'}
+              </button>
+            )}
+          </div>
+
+          {!selectedClassId ? (
+            <p className="text-xs text-text-muted italic border border-dashed border-border rounded p-3 text-center">
+              Please select a class first to view available sections.
+            </p>
+          ) : isLoadingSections ? (
+            <p className="text-xs text-text-muted border border-border rounded p-3 text-center">
+              Loading sections...
+            </p>
+          ) : sections.length === 0 ? (
+            <p className="text-xs text-warning-700 bg-warning-50 border border-warning-200 rounded p-3">
+              No sections available for this class. Please create a section in Class Management.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border border-border rounded-md p-3 bg-surface-muted/30 max-h-40 overflow-y-auto">
+              {sections.map((sec) => {
+                const secId = sec._id || sec.id;
+                const isSelected = selectedSectionIds.includes(secId);
+                return (
+                  <label
+                    key={secId}
+                    className={`flex items-center gap-2 px-3 py-2 rounded border text-xs font-medium cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'border-primary-500 bg-primary-50 text-primary-900 dark:bg-primary-950/40 dark:text-primary-200'
+                        : 'border-border bg-surface hover:bg-surface-muted text-text-primary'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSection(secId)}
+                      className="rounded border-border text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="truncate">{sec.name} {sec.code ? `(${sec.code})` : ''}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          {errors.sectionId && (
+            <p className="text-xs text-danger-600">{errors.sectionId.message}</p>
+          )}
         </div>
 
         {/* Modal Controls */}

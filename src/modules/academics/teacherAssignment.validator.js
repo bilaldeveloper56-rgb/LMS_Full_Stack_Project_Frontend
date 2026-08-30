@@ -3,24 +3,31 @@ import AppError from '../../utils/AppError.js';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
-export const createTeacherAssignmentSchema = z.object({
-  academicSessionId: z
-    .string({ required_error: 'Academic session ID is required' })
-    .regex(objectIdRegex, 'Invalid academic session ID format'),
-  teacherId: z
-    .string({ required_error: 'Teacher ID is required' })
-    .regex(objectIdRegex, 'Invalid teacher ID format'),
-  classId: z
-    .string({ required_error: 'Class ID is required' })
-    .regex(objectIdRegex, 'Invalid class ID format'),
-  sectionId: z
-    .string({ required_error: 'Section ID is required' })
-    .regex(objectIdRegex, 'Invalid section ID format'),
-  subjectId: z
-    .string({ required_error: 'Subject ID is required' })
-    .regex(objectIdRegex, 'Invalid subject ID format'),
-  schoolId: z.string().regex(objectIdRegex, 'Invalid school ID format').optional(),
-});
+export const createTeacherAssignmentSchema = z
+  .object({
+    academicSessionId: z
+      .string({ required_error: 'Academic session ID is required' })
+      .regex(objectIdRegex, 'Invalid academic session ID format'),
+    teacherId: z
+      .string({ required_error: 'Teacher ID is required' })
+      .regex(objectIdRegex, 'Invalid teacher ID format'),
+    classId: z
+      .string({ required_error: 'Class ID is required' })
+      .regex(objectIdRegex, 'Invalid class ID format'),
+    sectionId: z.string().regex(objectIdRegex, 'Invalid section ID format').optional(),
+    sectionIds: z
+      .array(z.string().regex(objectIdRegex, 'Invalid section ID format'))
+      .min(1, 'At least one section ID is required')
+      .optional(),
+    subjectId: z
+      .string({ required_error: 'Subject ID is required' })
+      .regex(objectIdRegex, 'Invalid subject ID format'),
+    schoolId: z.string().regex(objectIdRegex, 'Invalid school ID format').optional(),
+  })
+  .refine((data) => Boolean(data.sectionId || (data.sectionIds && data.sectionIds.length > 0)), {
+    message: 'Section ID is required',
+    path: ['sectionId'],
+  });
 
 export const updateTeacherAssignmentSchema = z.object({
   teacherId: z.string().regex(objectIdRegex, 'Invalid teacher ID format').optional(),

@@ -58,6 +58,43 @@ describe('Academic Domain Services Integration Tests', () => {
       assert.equal(updatedManyCalled, true);
     });
 
+    it('should transition previous active sessions to COMPLETED when activating a session', async () => {
+      const origSessionFindOne = AcademicSession.findOne;
+      const origSessionUpdateMany = AcademicSession.updateMany;
+      const origSessionSave = AcademicSession.prototype.save;
+
+      let updateManyFilter = null;
+      let updateManyUpdate = null;
+      AcademicSession.findOne = () =>
+        Promise.resolve({
+          _id: 'session-2',
+          schoolId,
+          status: SESSION_STATUS.UPCOMING,
+          save: function () {
+            return Promise.resolve(this);
+          },
+          toJSON: function () {
+            return { ...this };
+          },
+        });
+      AcademicSession.updateMany = (filter, update) => {
+        updateManyFilter = filter;
+        updateManyUpdate = update;
+        return Promise.resolve({ modifiedCount: 1 });
+      };
+
+      const updated = await sessionService.changeSessionStatus('507f1f77bcf86cd799439022', SESSION_STATUS.ACTIVE, schoolAdminUser);
+
+      AcademicSession.findOne = origSessionFindOne;
+      AcademicSession.updateMany = origSessionUpdateMany;
+      AcademicSession.prototype.save = origSessionSave;
+
+      assert.equal(updated.status, SESSION_STATUS.ACTIVE);
+      assert.equal(updated.isCurrent, true);
+      assert.equal(updateManyUpdate.status, SESSION_STATUS.COMPLETED);
+      assert.equal(updateManyUpdate.isCurrent, false);
+    });
+
     it('should reject duplicate session name within the same school', async () => {
       const origSchoolFindById = School.findById;
       const origSessionFindOne = AcademicSession.findOne;
@@ -267,6 +304,62 @@ describe('Academic Domain Services Integration Tests', () => {
 
       assert.equal(assignment.teacherId.toString(), teacherId);
       assert.equal(assignment.subjectId.toString(), subjectId);
+    });
+
+    it('should assign teacher to multiple sections simultaneously', async () => {
+      const origSchoolFindById = School.findById;
+      const origSessionFindOne = AcademicSession.findOne;
+      const origTeacherFindOne = Teacher.findOne;
+      const origClassFindOne = Class.findOne;
+      const origSectionFindOne = Section.findOne;
+      const origSubjectFindOne = Subject.findOne;
+      const origAssignmentFindOne = TeacherAssignment.findOne;
+      const origAssignmentSave = TeacherAssignment.prototype.save;
+
+      const teacherId = '507f1f77bcf86cd799439033';
+      const subjectId = '507f1f77bcf86cd799439066';
+      const sessionId = '507f1f77bcf86cd799439022';
+      const classId = '507f1f77bcf86cd799439044';
+      const sectionA = '507f1f77bcf86cd799439055';
+      const sectionB = '507f1f77bcf86cd799439056';
+
+      School.findById = () => Promise.resolve({ _id: schoolId, isDeleted: false });
+      AcademicSession.findOne = () => Promise.resolve({ _id: sessionId, schoolId });
+      Teacher.findOne = () => Promise.resolve({ _id: teacherId, schoolId });
+      Class.findOne = () => Promise.resolve({ _id: classId, schoolId });
+      Section.findOne = ({ _id }) => Promise.resolve({ _id, classId, schoolId });
+      Subject.findOne = () => Promise.resolve({ _id: subjectId, schoolId });
+      TeacherAssignment.findOne = () => Promise.resolve(null);
+      let saveCount = 0;
+      TeacherAssignment.prototype.save = function () {
+        saveCount++;
+        this._id = `assignment-${saveCount}`;
+        return Promise.resolve(this);
+      };
+
+      const result = await assignmentService.createTeacherAssignment(
+        {
+          academicSessionId: sessionId,
+          teacherId,
+          classId,
+          sectionIds: [sectionA, sectionB],
+          subjectId,
+        },
+        schoolAdminUser
+      );
+
+      School.findById = origSchoolFindById;
+      AcademicSession.findOne = origSessionFindOne;
+      Teacher.findOne = origTeacherFindOne;
+      Class.findOne = origClassFindOne;
+      Section.findOne = origSectionFindOne;
+      Subject.findOne = origSubjectFindOne;
+      TeacherAssignment.findOne = origAssignmentFindOne;
+      TeacherAssignment.prototype.save = origAssignmentSave;
+
+      assert.equal(saveCount, 2);
+      assert.equal(result.assignedSectionsCount, 2);
+      assert.equal(result.assignments.length, 2);
     });
   });
 });

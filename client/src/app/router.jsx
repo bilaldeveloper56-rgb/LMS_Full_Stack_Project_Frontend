@@ -329,6 +329,16 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: '/academics/sessions',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.ACADEMIC_SESSIONS_READ}>
+            <SuspenseWrap>
+              <AcademicSessionsPage />
+            </SuspenseWrap>
+          </PermissionGuard>
+        ),
+      },
+      {
         path: '/classes',
         element: (
           <PermissionGuard permission={PERMISSIONS.CLASSES_READ}>
@@ -339,7 +349,27 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: '/academics/classes',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.CLASSES_READ}>
+            <SuspenseWrap>
+              <ClassesPage />
+            </SuspenseWrap>
+          </PermissionGuard>
+        ),
+      },
+      {
         path: '/subjects',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.SUBJECTS_READ}>
+            <SuspenseWrap>
+              <SubjectsPage />
+            </SuspenseWrap>
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/academics/subjects',
         element: (
           <PermissionGuard permission={PERMISSIONS.SUBJECTS_READ}>
             <SuspenseWrap>

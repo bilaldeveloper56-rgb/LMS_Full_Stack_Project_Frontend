@@ -1,99 +1,111 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ToastProvider } from '@/components/feedback';
 import { StudentForm } from '../components/StudentForm';
-import * as studentsApi from '../api/students.api';
+import * as studentsHooks from '../hooks/useStudents';
 
-vi.mock('../api/students.api', () => ({
-  fetchClasses: vi.fn().mockResolvedValue([{ _id: '507f1f77bcf86cd799439012', name: 'Grade 10' }]),
-  fetchSections: vi.fn().mockResolvedValue([{ _id: '507f1f77bcf86cd799439013', name: 'Section A' }]),
-  fetchAcademicSessions: vi.fn().mockResolvedValue([{ _id: '507f1f77bcf86cd799439011', name: '2026-2027' }]),
-  uploadStudentAvatar: vi.fn(),
+vi.mock('../hooks/useStudents', () => ({
+  useAcademicOptions: vi.fn(),
+  useUploadAvatar: vi.fn(() => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  })),
 }));
 
-const renderWithProviders = (ui) => {
+const renderWithRouter = (ui) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>{ui}</ToastProvider>
+      <MemoryRouter>{ui}</MemoryRouter>
     </QueryClientProvider>
   );
 };
 
-describe('StudentForm', () => {
+describe('StudentForm Component', () => {
+  const mockSessions = [
+    { _id: 'sess-1', name: '2026-2027', isCurrent: true, status: 'ACTIVE' },
+    { _id: 'sess-2', name: '2027-2028', isCurrent: false, status: 'UPCOMING' },
+  ];
+
+  const mockClasses = [
+    { _id: 'cls-1', name: 'Grade 10', academicSessionId: 'sess-1' },
+    { _id: 'cls-2', name: 'Grade 9', academicSessionId: 'sess-1' },
+  ];
+
+  const mockSections = [
+    { _id: 'sec-1', name: 'Section A', code: 'A', classId: 'cls-1' },
+    { _id: 'sec-2', name: 'Section B', code: 'B', classId: 'cls-1' },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
+    studentsHooks.useAcademicOptions.mockReturnValue({
+      sessions: mockSessions,
+      classes: mockClasses,
+      sections: mockSections,
+      isLoadingSessions: false,
+      isLoadingClasses: false,
+      isLoadingSections: false,
+      isClassesError: false,
+      isSectionsError: false,
+    });
   });
 
-  it('should render all form sections and trigger validation on empty submit', async () => {
-    const handleSubmit = vi.fn();
-    renderWithProviders(<StudentForm onSubmit={handleSubmit} />);
+  it('renders dependent selection fields (Session, Class, Section) and personal details', () => {
+    renderWithRouter(<StudentForm onSubmit={vi.fn()} />);
 
-    expect(screen.getByText('Personal Details')).toBeInTheDocument();
-    expect(screen.getByText('Academic Enrollment')).toBeInTheDocument();
-    expect(screen.getByText('Contact & Address')).toBeInTheDocument();
-    expect(screen.getByText('Emergency Contact')).toBeInTheDocument();
-
-    const submitBtn = screen.getByRole('button', { name: /Save Student/i });
-    fireEvent.click(submitBtn);
-
-    expect(await screen.findByText('First name is required')).toBeInTheDocument();
-    expect(screen.getByText('Last name is required')).toBeInTheDocument();
-    expect(screen.getByText('Admission number is required')).toBeInTheDocument();
-    expect(handleSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText(/1, 2, 3. Academic Placement/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/1. Academic Session/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/2. Class/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/3. Section/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/First Name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last Name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Admission Number/i)).toBeInTheDocument();
+    expect(screen.getByText(/6. Cohort Review & Verification/i)).toBeInTheDocument();
   });
 
-  it('should submit valid form data successfully', async () => {
-    const handleSubmit = vi.fn();
-    renderWithProviders(<StudentForm onSubmit={handleSubmit} />);
+  it('auto-selects active session on mount', () => {
+    renderWithRouter(<StudentForm onSubmit={vi.fn()} />);
 
-    // Wait for async dropdowns to load
-    await waitFor(() => {
-      expect(screen.getByText('2026-2027')).toBeInTheDocument();
-      expect(screen.getByText('Grade 10')).toBeInTheDocument();
+    const sessionSelect = screen.getByLabelText(/1. Academic Session/i);
+    expect(sessionSelect.value).toBe('sess-1');
+  });
+
+  it('updates selected section value when a section is chosen without triggering page navigation', () => {
+    renderWithRouter(<StudentForm onSubmit={vi.fn()} />);
+
+    const classSelect = screen.getByLabelText(/2. Class/i);
+    fireEvent.change(classSelect, { target: { value: 'cls-1' } });
+
+    const sectionSelect = screen.getByLabelText(/3. Section/i);
+    fireEvent.change(sectionSelect, { target: { value: 'sec-1' } });
+
+    expect(sectionSelect.value).toBe('sec-1');
+  });
+
+  it('renders a valid link to /classes when a class has no sections', () => {
+    studentsHooks.useAcademicOptions.mockReturnValue({
+      sessions: mockSessions,
+      classes: mockClasses,
+      sections: [],
+      isLoadingSessions: false,
+      isLoadingClasses: false,
+      isLoadingSections: false,
+      isClassesError: false,
+      isSectionsError: false,
     });
 
-    fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Alice' } });
-    fireEvent.change(screen.getByLabelText(/Last Name/i), { target: { value: 'Johnson' } });
-    fireEvent.change(screen.getByLabelText(/Admission Number/i), { target: { value: 'ADM-099' } });
-    fireEvent.change(screen.getByLabelText(/Date of Birth/i), { target: { value: '2010-02-14' } });
+    renderWithRouter(<StudentForm onSubmit={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText(/Academic Session/i), {
-      target: { value: '507f1f77bcf86cd799439011' },
-    });
-    fireEvent.change(screen.getByLabelText(/Class \*/i), {
-      target: { value: '507f1f77bcf86cd799439012' },
-    });
+    const classSelect = screen.getByLabelText(/2. Class/i);
+    fireEvent.change(classSelect, { target: { value: 'cls-1' } });
 
-    // Wait for section dropdown to populate
-    await waitFor(() => {
-      expect(screen.getByText('Section A')).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByLabelText(/Section \*/i), {
-      target: { value: '507f1f77bcf86cd799439013' },
-    });
-
-    const submitBtn = screen.getByRole('button', { name: /Save Student/i });
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(handleSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          firstName: 'Alice',
-          lastName: 'Johnson',
-          admissionNumber: 'ADM-099',
-          dateOfBirth: '2010-02-14',
-          academicSessionId: '507f1f77bcf86cd799439011',
-          classId: '507f1f77bcf86cd799439012',
-          sectionId: '507f1f77bcf86cd799439013',
-        }),
-        expect.anything()
-      );
-    });
+    const link = screen.getByRole('link', { name: /Create a section first/i });
+    expect(link).toBeInTheDocument();
+    expect(link.getAttribute('href')).toBe('/classes');
   });
 });

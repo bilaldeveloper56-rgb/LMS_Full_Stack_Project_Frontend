@@ -16,6 +16,11 @@ describe('Application Router Architecture', () => {
     expect(childPaths).toContain('/teachers');
     expect(childPaths).toContain('/parents');
     expect(childPaths).toContain('/academic-sessions');
+    expect(childPaths).toContain('/academics/sessions');
+    expect(childPaths).toContain('/classes');
+    expect(childPaths).toContain('/academics/classes');
+    expect(childPaths).toContain('/subjects');
+    expect(childPaths).toContain('/academics/subjects');
     expect(childPaths).toContain('/attendance');
     expect(childPaths).toContain('/assignments');
     expect(childPaths).toContain('/quizzes');

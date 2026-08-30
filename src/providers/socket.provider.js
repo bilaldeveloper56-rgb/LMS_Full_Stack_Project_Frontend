@@ -110,9 +110,21 @@ export const initSocketServer = (httpServer) => {
     return io;
   }
 
+  const allowedOrigins = (env.FRONTEND_URL || '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''));
+
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: env.CORS_ORIGIN || '*',
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const cleanOrigin = origin.replace(/\/+$/, '');
+        if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST'],
     },
