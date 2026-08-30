@@ -10,6 +10,7 @@ import { sendEmail } from '../../providers/email.provider.js';
 import { schoolAdminInvitationEmail } from '../../templates/emails/schoolAdminInvitation.js';
 import { welcomeEmail } from '../../templates/emails/welcome.js';
 import { logAuditEvent } from '../audit/audit.service.js';
+import { buildFrontendUrl } from '../../utils/urlHelper.js';
 
 // Helper to hash tokens
 function hashToken(token) {
@@ -178,7 +179,7 @@ export async function createSchoolWithAdmin(schoolData, adminData, superAdminId,
   });
 
   // 6. Send Invitation Email
-  const invitationUrl = `${env.FRONTEND_URL}/accept-invitation?token=${rawInvitationToken}`;
+  const invitationUrl = buildFrontendUrl('/accept-invitation', { token: rawInvitationToken });
   const emailContent = schoolAdminInvitationEmail({
     firstName: createdAdmin.firstName,
     schoolName: createdSchool.name,
@@ -252,7 +253,7 @@ export async function acceptInvitation(token, newPassword, meta = {}) {
   // Send Welcome Email
   const welcomeContent = welcomeEmail({
     firstName: user.firstName,
-    loginUrl: `${env.FRONTEND_URL}/login`,
+    loginUrl: buildFrontendUrl('/login'),
   });
   await sendEmail({ to: user.email, ...welcomeContent });
 
@@ -489,7 +490,7 @@ export async function resendAdminInvitation(schoolId, superAdminId, meta = {}) {
     userAgent: meta.userAgent,
   });
 
-  const invitationUrl = `${env.FRONTEND_URL}/accept-invitation?token=${rawToken}`;
+  const invitationUrl = buildFrontendUrl('/accept-invitation', { token: rawToken });
   const emailContent = schoolAdminInvitationEmail({
     firstName: admin.firstName,
     schoolName: school.name,

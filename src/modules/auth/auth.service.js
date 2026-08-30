@@ -10,6 +10,7 @@ import { passwordResetEmail } from '../../templates/emails/passwordReset.js';
 import { emailVerificationEmail } from '../../templates/emails/emailVerification.js';
 import AppError from '../../utils/AppError.js';
 import { USER_STATUS, SCHOOL_STATUS, AUTH_EVENTS } from '../../constants/index.js';
+import { buildFrontendUrl } from '../../utils/urlHelper.js';
 
 // Helper functions (NOT exported)
 function generateAccessToken(user) {
@@ -201,7 +202,7 @@ export async function forgotPassword(email) {
   user.passwordResetExpires = new Date(Date.now() + parseDuration(env.PASSWORD_RESET_EXPIRES_IN));
   await user.save({ validateBeforeSave: false });
   
-  const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+  const resetUrl = buildFrontendUrl('/reset-password', { token: resetToken });
   const emailContent = passwordResetEmail({ 
     firstName: user.firstName, 
     resetUrl, 
@@ -272,7 +273,7 @@ export async function resendVerification(email) {
   user.emailVerificationExpires = new Date(Date.now() + parseDuration(env.EMAIL_VERIFICATION_EXPIRES_IN));
   await user.save();
   
-  const verificationUrl = `${env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+  const verificationUrl = buildFrontendUrl('/verify-email', { token: verificationToken });
   const emailContent = emailVerificationEmail({ 
     firstName: user.firstName, 
     verificationUrl, 

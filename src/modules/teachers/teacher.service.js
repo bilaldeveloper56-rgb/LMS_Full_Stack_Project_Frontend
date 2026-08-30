@@ -10,6 +10,7 @@ import { teacherInvitationEmail } from '../../templates/emails/teacherInvitation
 import AppError from '../../utils/AppError.js';
 import { ROLES, USER_STATUS, AUTH_EVENTS } from '../../constants/index.js';
 import { logAuditEvent } from '../audit/audit.service.js';
+import { buildFrontendUrl } from '../../utils/urlHelper.js';
 
 function resolveSchoolId(user, explicitSchoolId) {
   if (user.role === ROLES.SUPER_ADMIN) {
@@ -110,7 +111,7 @@ export async function createTeacher(data, user, meta = {}) {
   let invitationUrl = null;
 
   if (createdUser && rawInvitationToken) {
-    invitationUrl = `${env.FRONTEND_URL}/accept-invitation?token=${rawInvitationToken}`;
+    invitationUrl = buildFrontendUrl('/accept-invitation', { token: rawInvitationToken });
     const emailContent = teacherInvitationEmail({
       firstName: teacher.firstName,
       schoolName: school.name,
