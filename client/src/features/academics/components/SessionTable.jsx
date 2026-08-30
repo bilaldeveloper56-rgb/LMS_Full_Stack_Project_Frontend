@@ -84,7 +84,7 @@ export function SessionTable({
                 <TableCell>
                   {session.isCurrent ? (
                     <Badge variant="primary" size="sm" className="gap-1">
-                      <Star className="w-3 h-3 fill-current" /> Active Session
+                      <Star className="w-3 h-3 fill-current" /> Current Session
                     </Badge>
                   ) : canManage ? (
                     <Button
@@ -93,7 +93,7 @@ export function SessionTable({
                       className="h-7 text-xs text-text-muted hover:text-primary-600"
                       onClick={() => onSetCurrent && onSetCurrent(sessionId)}
                     >
-                      Set as Active
+                      Set as Current
                     </Button>
                   ) : (
                     <span className="text-xs text-text-muted">—</span>

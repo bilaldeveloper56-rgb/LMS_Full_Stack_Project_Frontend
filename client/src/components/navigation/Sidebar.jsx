@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useIsMobile, useIsDesktop } from '@/hooks/useMediaQuery';
@@ -58,6 +58,31 @@ export function Sidebar({ isOpen, onClose }) {
   const isCollapsed = !isDesktop && !isMobile;
   const { user, isLoading } = useAuth();
 
+  // Close sidebar on Escape key press in mobile view
+  useEffect(() => {
+    if (!isMobile || !isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobile, isOpen, onClose]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (isMobile && isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isMobile, isOpen]);
+
   // Filter navigation groups and items against the user's role and permissions
   const authorizedNavGroups = useMemo(() => {
     if (isLoading || !user) {
@@ -84,13 +109,16 @@ export function Sidebar({ isOpen, onClose }) {
   }, [user, isLoading]);
 
   const sidebarClasses = cn(
-    'fixed top-0 left-0 h-full bg-surface border-r border-border z-[var(--z-sticky)] transition-all duration-300 flex flex-col',
-    {
-      'w-[var(--sidebar-width)]': isDesktop || (isMobile && isOpen),
-      'w-[var(--sidebar-collapsed-width)]': isCollapsed,
-      'translate-x-0': !isMobile || isOpen,
-      '-translate-x-full': isMobile && !isOpen,
-    }
+    'fixed top-0 left-0 h-full bg-surface border-r border-border transition-all duration-300 flex flex-col',
+    isMobile
+      ? cn(
+          'w-[80vw] max-w-xs shadow-lg z-[calc(var(--z-overlay)+10)]',
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        )
+      : cn(
+          'z-[var(--z-sticky)] translate-x-0',
+          isDesktop ? 'w-[var(--sidebar-width)]' : 'w-[var(--sidebar-collapsed-width)]'
+        )
   );
 
   const renderNavItems = () => {

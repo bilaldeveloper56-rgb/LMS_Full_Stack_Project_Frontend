@@ -114,3 +114,60 @@ describe('Role-Aware Sidebar Navigation', () => {
     expect(screen.queryByText('Quizzes')).not.toBeInTheDocument();
   });
 });
+
+describe('Mobile Sidebar Drawer Behavior', () => {
+  beforeEach(() => {
+    vi.spyOn(mediaQueryModule, 'useIsDesktop').mockReturnValue(false);
+    vi.spyOn(mediaQueryModule, 'useIsMobile').mockReturnValue(true);
+    vi.spyOn(authContextModule, 'useAuth').mockReturnValue({
+      user: { id: 'adm', role: ROLES.SCHOOL_ADMIN },
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  });
+
+  it('should render backdrop and close button when open on mobile', () => {
+    const handleClose = vi.fn();
+    const { container } = render(
+      <MemoryRouter>
+        <Sidebar isOpen={true} onClose={handleClose} />
+      </MemoryRouter>
+    );
+
+    const backdrop = container.querySelector('[aria-hidden="true"]');
+    expect(backdrop).toBeInTheDocument();
+    expect(backdrop).toHaveClass('z-[var(--z-overlay)]');
+
+    const closeButton = screen.getByRole('button', { name: /Close menu/i });
+    expect(closeButton).toBeInTheDocument();
+  });
+
+  it('should trigger onClose when clicking close button or backdrop', () => {
+    const handleClose = vi.fn();
+    const { container } = render(
+      <MemoryRouter>
+        <Sidebar isOpen={true} onClose={handleClose} />
+      </MemoryRouter>
+    );
+
+    const backdrop = container.querySelector('[aria-hidden="true"]');
+    backdrop.click();
+    expect(handleClose).toHaveBeenCalledTimes(1);
+
+    const closeButton = screen.getByRole('button', { name: /Close menu/i });
+    closeButton.click();
+    expect(handleClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('should trigger onClose when pressing Escape key on mobile', () => {
+    const handleClose = vi.fn();
+    render(
+      <MemoryRouter>
+        <Sidebar isOpen={true} onClose={handleClose} />
+      </MemoryRouter>
+    );
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+});

@@ -122,7 +122,7 @@ export function SessionFormModal({
 
         <div className="pt-1">
           <Checkbox
-            label="Mark as current active academic session"
+            label="Mark as current academic session"
             {...register('isCurrent')}
           />
         </div>

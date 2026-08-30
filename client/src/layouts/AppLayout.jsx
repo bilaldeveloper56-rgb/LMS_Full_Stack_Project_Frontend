@@ -29,6 +29,11 @@ export function AppLayout() {
     return { title };
   };
 
+  // Close mobile sidebar on route transition
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const { title } = getPageInfo();
 
   return (
@@ -46,7 +51,7 @@ export function AppLayout() {
       />
       
       <Header 
-        onMenuClick={() => setIsMobileMenuOpen(true)} 
+        onMenuClick={() => setIsMobileMenuOpen((prev) => !prev)} 
         pageTitle={title}
       />
       

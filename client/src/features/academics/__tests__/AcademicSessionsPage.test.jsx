@@ -70,7 +70,7 @@ describe('AcademicSessionsPage', () => {
     renderWithProviders(<AcademicSessionsPage />);
 
     expect(await screen.findByText('2026-2027 Academic Year')).toBeInTheDocument();
-    expect(screen.getByText('Active Session')).toBeInTheDocument();
+    expect(screen.getByText('Current Session')).toBeInTheDocument();
     expect(screen.getByText('New Academic Session')).toBeInTheDocument();
   });
 
