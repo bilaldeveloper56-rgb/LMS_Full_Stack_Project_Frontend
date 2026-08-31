@@ -142,7 +142,7 @@ export function AssignTeacherModal({
             { value: '', label: 'Select Session' },
             ...sessions.map((s) => ({
               value: s._id || s.id,
-              label: `${s.name}${s.isCurrent ? ' (Active)' : ''}`,
+              label: `${s.name}${s.isCurrent ? ' (Current Session)' : ''}`,
             })),
           ]}
           {...register('academicSessionId')}

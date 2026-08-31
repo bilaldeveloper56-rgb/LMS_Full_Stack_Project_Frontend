@@ -65,7 +65,7 @@ export function AssignmentFilters({
             { value: '', label: 'All Sessions' },
             ...sessions.map((s) => ({
               value: s._id || s.id,
-              label: `${s.name}${s.isCurrent ? ' (Active)' : ''}`,
+              label: `${s.name}${s.isCurrent ? ' (Current Session)' : ''}`,
             })),
           ]}
         />

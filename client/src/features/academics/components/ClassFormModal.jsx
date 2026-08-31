@@ -51,6 +51,8 @@ export function ClassFormModal({
   });
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (initialValues) {
       reset({
         name: initialValues.name || '',
@@ -72,7 +74,7 @@ export function ClassFormModal({
         isActive: true,
       });
     }
-  }, [initialValues, reset, isOpen, sessions]);
+  }, [initialValues, reset, isOpen]);
 
   const handleFormSubmit = async (formData) => {
     await onSubmit(formData);
@@ -115,7 +117,7 @@ export function ClassFormModal({
               { value: '', label: 'Select Session' },
               ...sessions.map((s) => ({
                 value: s._id || s.id,
-                label: `${s.name}${s.isCurrent ? ' (Active)' : ''}`,
+                label: `${s.name}${s.isCurrent ? ' (Current Session)' : ''}`,
               })),
             ]}
             {...register('academicSessionId')}
@@ -126,6 +128,7 @@ export function ClassFormModal({
           label="Display Order"
           type="number"
           placeholder="e.g. 10"
+          helperText="Display Order controls the order in which classes appear in lists and menus."
           error={errors.displayOrder?.message}
           {...register('displayOrder')}
         />

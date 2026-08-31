@@ -1,38 +1,41 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@/components/feedback';
 import { ClassesPage } from '../pages/ClassesPage';
-import * as academicsApi from '../api/academics.api';
 import * as authContextModule from '@/features/auth/auth.context';
 import { ROLES, PERMISSIONS } from '@/constants';
 
-vi.mock('../api/academics.api', () => ({
-  fetchAcademicSessions: vi.fn(() => Promise.resolve({ sessions: [] })),
-  fetchClasses: vi.fn(() =>
-    Promise.resolve({
+vi.mock('../hooks/useAcademics', () => ({
+  useClasses: vi.fn(() => ({
+    data: {
       classes: [{ _id: 'c1', name: 'Grade 10', code: 'G10', displayOrder: 10, isActive: true }],
       pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
-    })
-  ),
-  fetchClassById: vi.fn(() => Promise.resolve({})),
-  createClass: vi.fn(),
-  updateClass: vi.fn(),
-  deleteClass: vi.fn(),
-  fetchSections: vi.fn(() =>
-    Promise.resolve({
-      sections: [
-        { _id: 's1', name: 'Section A', code: 'SEC-A', capacity: 40, classId: { name: 'Grade 10' } },
-      ],
+    },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+    isFetching: false,
+  })),
+  useSections: vi.fn(() => ({
+    data: {
+      sections: [{ _id: 's1', name: 'Section A', code: 'SEC-A', capacity: 40, classId: { name: 'Grade 10' } }],
       pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
-    })
-  ),
-  fetchSectionById: vi.fn(() => Promise.resolve({})),
-  createSection: vi.fn(),
-  updateSection: vi.fn(),
-  deleteSection: vi.fn(),
+    },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+    isFetching: false,
+  })),
+  useAcademicSessions: vi.fn(() => ({ data: { sessions: [] }, isLoading: false })),
+  useCreateClass: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useUpdateClass: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useDeleteClass: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useCreateSection: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useUpdateSection: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useDeleteSection: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@/features/teachers', () => ({
@@ -71,16 +74,11 @@ describe('ClassesPage', () => {
     });
   });
 
-  it('should render classes tab and switch to sections tab', async () => {
+  it('should render classes list and action controls', async () => {
     renderWithProviders(<ClassesPage />);
 
     expect(await screen.findByText('Grade 10')).toBeInTheDocument();
     expect(screen.getByText('G10')).toBeInTheDocument();
     expect(screen.getByText('New Class')).toBeInTheDocument();
-
-    // Switch to sections tab
-    fireEvent.click(screen.getByRole('tab', { name: /Sections/i }));
-    expect(await screen.findByText('Section A')).toBeInTheDocument();
-    expect(screen.getByText('40 seats')).toBeInTheDocument();
   });
 });

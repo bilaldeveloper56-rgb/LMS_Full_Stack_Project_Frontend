@@ -55,6 +55,8 @@ export function SectionFormModal({
   });
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (initialValues) {
       reset({
         name: initialValues.name || '',

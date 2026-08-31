@@ -213,7 +213,7 @@ export function StudentForm({
                 { value: '', label: 'Select Academic Session' },
                 ...sessions.map((s) => ({
                   value: s._id || s.id,
-                  label: `${s.name}${s.isCurrent || s.status === 'ACTIVE' ? ' (Active)' : ''}`,
+                  label: `${s.name}${s.isCurrent ? ' (Current Session)' : ''}`,
                 })),
               ]}
               value={selectedSessionId}

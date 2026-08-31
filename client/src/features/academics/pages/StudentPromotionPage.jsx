@@ -349,7 +349,7 @@ export function StudentPromotionPage() {
                   options={[
                     { label: 'Select Current Session', value: '' },
                     ...sessions.map((s) => ({
-                      label: `${s.name} ${s.isCurrent ? '(Active Current)' : `(${s.status})`}`,
+                      label: `${s.name} ${s.isCurrent ? '(Current Session)' : `(${s.status})`}`,
                       value: s.id || s._id,
                     })),
                   ]}
