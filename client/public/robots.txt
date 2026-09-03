@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+
+# Disallow authenticated application routes
+Disallow: /dashboard
+Disallow: /students
+Disallow: /teachers
+Disallow: /parents
+Disallow: /academic-sessions
+Disallow: /academics
+Disallow: /classes
+Disallow: /subjects
+Disallow: /attendance
+Disallow: /leaves
+Disallow: /timetable
+Disallow: /assignments
+Disallow: /quizzes
+Disallow: /notifications
+Disallow: /messages
+Disallow: /exams
+Disallow: /results
+Disallow: /fees
+Disallow: /notices
+Disallow: /reports
+Disallow: /audit-logs
+Disallow: /analytics
+Disallow: /schools
+Disallow: /accept-invitation
+Disallow: /403
+
+# Sitemap
+Sitemap: https://app.lmsprime.online/sitemap.xml
