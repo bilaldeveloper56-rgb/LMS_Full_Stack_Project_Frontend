@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { env } from '../config/env.js';
+import { SLUG_REGEX } from '../constants/index.js';
 
 import { createRateLimitStore } from '../providers/redis.provider.js';
 
@@ -20,10 +21,14 @@ const applySecurityMiddleware = (app) => {
   // Security headers
   app.use(helmet());
 
-  // CORS - configured origins only, NOT wildcard
+  // CORS - configured origins and verified *.lmsprime.online tenant subdomains
   const allowedOrigins = (env.FRONTEND_URL || '')
     .split(',')
     .map((origin) => origin.trim().replace(/\/+$/, ''));
+
+  const lmsprimeSubdomainRegex = /^https:\/\/([a-z0-9-]+)\.lmsprime\.online$/;
+  const localhostSubdomainRegex = /^http:\/\/([a-z0-9-]+)\.localhost(?::\d+)?$/;
+  const localhostPlainRegex = /^http:\/\/localhost(?::\d+)?$/;
 
   app.use(cors({
     origin: (origin, callback) => {
@@ -32,7 +37,24 @@ const applySecurityMiddleware = (app) => {
         return callback(null, true);
       }
       const cleanOrigin = origin.replace(/\/+$/, '');
-      if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes(origin)) {
+
+      // Check production *.lmsprime.online origins with strict slug regex
+      const lmsMatch = cleanOrigin.match(lmsprimeSubdomainRegex);
+      const isAllowedLmsOrigin = Boolean(lmsMatch && SLUG_REGEX.test(lmsMatch[1]));
+
+      // Check dev *.localhost origins
+      const localMatch = cleanOrigin.match(localhostSubdomainRegex);
+      const isAllowedLocalSubdomain = Boolean(
+        env.NODE_ENV !== 'production' && localMatch && SLUG_REGEX.test(localMatch[1])
+      );
+
+      if (
+        allowedOrigins.includes(cleanOrigin) ||
+        allowedOrigins.includes(origin) ||
+        isAllowedLmsOrigin ||
+        isAllowedLocalSubdomain ||
+        (env.NODE_ENV !== 'production' && localhostPlainRegex.test(cleanOrigin))
+      ) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -40,7 +62,7 @@ const applySecurityMiddleware = (app) => {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-Tenant-Subdomain'],
     exposedHeaders: ['X-Request-Id'],
     maxAge: 86400, // 24 hours preflight cache
   }));

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getErrorMessage } from '@/lib/utils';
 import { getAccessToken, setAccessToken, clearAccessToken } from '@/features/auth/auth.token';
+import { getTenantSubdomain } from '@/lib/tenant';
 
 /**
  * Centralized Axios instance for all API communication.
@@ -45,6 +46,14 @@ api.interceptors.request.use(
     const token = getAccessToken();
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // In local development, attach tenant subdomain header for localhost fallback testing
+    if (import.meta.env.DEV) {
+      const tenantSlug = getTenantSubdomain();
+      if (tenantSlug && !config.headers['X-Tenant-Subdomain']) {
+        config.headers['X-Tenant-Subdomain'] = tenantSlug;
+      }
     }
 
     // Strip empty string query parameters so server receives clean query payloads

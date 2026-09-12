@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import AppError from '../../utils/AppError.js';
-import { SCHOOL_STATUS_VALUES } from '../../constants/index.js';
+import { SCHOOL_STATUS_VALUES, SLUG_REGEX, isReservedSubdomain, slugify } from '../../constants/index.js';
 
 /**
  * Creates an Express middleware that validates req.body against a Zod schema.
@@ -36,6 +36,23 @@ const validateQuery = (schema) => (req, res, next) => {
   next();
 };
 
+/**
+ * Creates an Express middleware that validates req.params against a Zod schema.
+ * @param {z.ZodSchema} schema
+ * @returns {Function} Express middleware
+ */
+const validateParams = (schema) => (req, res, next) => {
+  const result = schema.safeParse(req.params);
+  if (!result.success) {
+    const errors = result.error.issues.map(
+      (issue) => `${issue.path.join('.')}: ${issue.message}`
+    );
+    return next(AppError.validationError('Invalid route parameters', errors));
+  }
+  req.validatedParams = result.data;
+  next();
+};
+
 const createSchoolSchema = z.object({
   school: z.object({
     name: z
@@ -43,6 +60,17 @@ const createSchoolSchema = z.object({
       .trim()
       .min(1, 'School name is required')
       .max(100, 'School name cannot exceed 100 characters'),
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(2, 'School slug must be at least 2 characters')
+      .max(50, 'School slug cannot exceed 50 characters')
+      .regex(SLUG_REGEX, 'School slug can only contain lowercase alphanumeric characters and single hyphens')
+      .refine((slug) => !isReservedSubdomain(slug), {
+        message: 'This subdomain slug is reserved for platform use',
+      })
+      .optional(),
     schoolCode: z
       .string({ required_error: 'School code is required' })
       .trim()
@@ -85,6 +113,11 @@ const createSchoolSchema = z.object({
       .toLowerCase(),
     phone: z.string().trim().optional().nullable(),
   }),
+}).transform((data) => {
+  if (!data.school.slug && data.school.name) {
+    data.school.slug = slugify(data.school.name);
+  }
+  return data;
 });
 
 const updateSchoolSchema = z.object({
@@ -143,8 +176,18 @@ const querySchoolsSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
+const slugParamSchema = z.object({
+  slug: z
+    .string({ required_error: 'Slug parameter is required' })
+    .trim()
+    .toLowerCase()
+    .min(2, 'Slug must be at least 2 characters')
+    .max(50, 'Slug cannot exceed 50 characters'),
+});
+
 export const validateCreateSchool = validateBody(createSchoolSchema);
 export const validateUpdateSchool = validateBody(updateSchoolSchema);
 export const validateChangeStatus = validateBody(changeStatusSchema);
 export const validateAcceptInvitation = validateBody(acceptInvitationSchema);
 export const validateQuerySchools = validateQuery(querySchoolsSchema);
+export const validateSlugParam = validateParams(slugParamSchema);

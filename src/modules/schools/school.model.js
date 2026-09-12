@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { SCHOOL_STATUS, SCHOOL_STATUS_VALUES } from '../../constants/index.js';
+import { SCHOOL_STATUS, SCHOOL_STATUS_VALUES, SLUG_REGEX, slugify } from '../../constants/index.js';
 
 const schoolSchema = new mongoose.Schema(
   {
@@ -8,6 +8,18 @@ const schoolSchema = new mongoose.Schema(
       required: [true, 'School name is required'],
       trim: true,
       maxlength: [100, 'School name cannot exceed 100 characters'],
+    },
+    slug: {
+      type: String,
+      required: [true, 'School slug is required'],
+      lowercase: true,
+      trim: true,
+      minlength: [2, 'School slug must be at least 2 characters'],
+      maxlength: [50, 'School slug cannot exceed 50 characters'],
+      match: [SLUG_REGEX, 'School slug can only contain lowercase alphanumeric characters and single hyphens'],
+      default: function () {
+        return this.name ? slugify(this.name) : undefined;
+      },
     },
     schoolCode: {
       type: String,
@@ -135,6 +147,10 @@ const schoolSchema = new mongoose.Schema(
 );
 
 // --- Indexes (Partial Unique: Uniqueness applies only to active/non-deleted schools) ---
+schoolSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
 schoolSchema.index(
   { schoolCode: 1 },
   { unique: true, partialFilterExpression: { isDeleted: false } }

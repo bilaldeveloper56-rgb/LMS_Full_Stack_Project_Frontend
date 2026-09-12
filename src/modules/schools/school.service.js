@@ -5,7 +5,15 @@ import User from '../users/user.model.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import AppError from '../../utils/AppError.js';
-import { ROLES, USER_STATUS, SCHOOL_STATUS, AUTH_EVENTS } from '../../constants/index.js';
+import {
+  ROLES,
+  USER_STATUS,
+  SCHOOL_STATUS,
+  AUTH_EVENTS,
+  SLUG_REGEX,
+  isReservedSubdomain,
+  slugify,
+} from '../../constants/index.js';
 import { sendEmail } from '../../providers/email.provider.js';
 import { schoolAdminInvitationEmail } from '../../templates/emails/schoolAdminInvitation.js';
 import { welcomeEmail } from '../../templates/emails/welcome.js';
@@ -39,6 +47,20 @@ function parseDuration(str) {
  */
 export async function createSchoolWithAdmin(schoolData, adminData, superAdminId, meta = {}) {
   // 1. Validate uniqueness
+  const normalizedSlug = (schoolData.slug || slugify(schoolData.name)).toLowerCase().trim();
+  if (!normalizedSlug || normalizedSlug.length < 2) {
+    throw AppError.badRequest('A valid school slug is required');
+  }
+
+  if (isReservedSubdomain(normalizedSlug)) {
+    throw AppError.badRequest(`Subdomain '${normalizedSlug}' is reserved for platform use`);
+  }
+
+  const existingSlug = await School.findOne({ slug: normalizedSlug });
+  if (existingSlug) {
+    throw AppError.conflict(`School subdomain slug '${normalizedSlug}' is already in use`);
+  }
+
   const existingCode = await School.findOne({ schoolCode: schoolData.schoolCode.toUpperCase() });
   if (existingCode) {
     throw AppError.conflict(`School code '${schoolData.schoolCode.toUpperCase()}' is already in use`);
@@ -80,6 +102,7 @@ export async function createSchoolWithAdmin(schoolData, adminData, superAdminId,
     // 3. Create School
     const schoolToSave = new School({
       ...schoolData,
+      slug: normalizedSlug,
       schoolCode: schoolData.schoolCode.toUpperCase(),
       email: schoolData.email.toLowerCase(),
       createdBy: superAdminId,
@@ -362,6 +385,7 @@ export async function updateSchool(schoolId, updates, updatedById, meta = {}) {
   }
 
   // Prevent immutable field mutation
+  delete updates.slug;
   delete updates.schoolCode;
   delete updates.createdBy;
   delete updates.isDeleted;
@@ -605,5 +629,75 @@ export async function deleteSchool(id, superAdminId, meta = {}) {
   return {
     success: true,
     message: `School "${school.name}" and associated accounts have been deleted successfully`,
+  };
+}
+
+/**
+ * Check whether a requested subdomain slug is available, reserved, invalid, or already in use.
+ *
+ * @param {string} slug - Subdomain candidate
+ * @returns {Promise<{ available: boolean, reason?: string }>}
+ */
+export async function checkSlugAvailability(slug) {
+  if (!slug || typeof slug !== 'string') {
+    return { available: false, reason: 'invalid' };
+  }
+
+  const normalized = slug.toLowerCase().trim();
+
+  // Validate format using SLUG_REGEX
+  if (!SLUG_REGEX.test(normalized) || normalized.length < 2 || normalized.length > 50) {
+    return { available: false, reason: 'invalid' };
+  }
+
+  // Check reserved list
+  if (isReservedSubdomain(normalized)) {
+    return { available: false, reason: 'reserved' };
+  }
+
+  // Check database collision (only active/non-deleted schools)
+  const existing = await School.findOne({ slug: normalized, isDeleted: false });
+  if (existing) {
+    return { available: false, reason: 'unavailable' };
+  }
+
+  return { available: true };
+}
+
+/**
+ * Retrieve safe, public-facing school tenant branding configuration by slug.
+ * Exposes ONLY public identity fields (name, slug, logo, status).
+ *
+ * @param {string} slug - Tenant subdomain slug
+ * @returns {Promise<{ name: string, slug: string, logo: string|null, status: string }>}
+ */
+export async function getPublicTenantConfigBySlug(slug) {
+  if (!slug || typeof slug !== 'string') {
+    throw AppError.badRequest('Invalid tenant subdomain');
+  }
+
+  const normalized = slug.toLowerCase().trim();
+
+  if (isReservedSubdomain(normalized)) {
+    const error = AppError.notFound('School not found');
+    error.code = 'TENANT_NOT_FOUND';
+    throw error;
+  }
+
+  const school = await School.findOne({ slug: normalized, isDeleted: false }).select(
+    'name slug logo status'
+  );
+
+  if (!school) {
+    const error = AppError.notFound('School not found');
+    error.code = 'TENANT_NOT_FOUND';
+    throw error;
+  }
+
+  return {
+    name: school.name,
+    slug: school.slug,
+    logo: school.logo || null,
+    status: school.status,
   };
 }

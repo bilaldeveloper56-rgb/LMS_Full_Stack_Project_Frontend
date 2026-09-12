@@ -80,3 +80,9 @@ export {
   CONVERSATION_TYPE,
   CONVERSATION_TYPE_VALUES,
 } from './communicationStatus.js';
+export {
+  RESERVED_SUBDOMAINS,
+  SLUG_REGEX,
+  isReservedSubdomain,
+  slugify,
+} from './reservedSubdomains.js';

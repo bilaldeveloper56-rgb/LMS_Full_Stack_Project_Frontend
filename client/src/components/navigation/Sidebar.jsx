@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useIsMobile, useIsDesktop } from '@/hooks/useMediaQuery';
 import { useAuth } from '@/features/auth';
+import { useTenant } from '@/features/tenant/tenant.context';
 import { canAccess } from '@/lib/authorization';
 import { NAV_GROUPS } from '@/constants';
 import {
@@ -57,6 +58,9 @@ export function Sidebar({ isOpen, onClose }) {
   const isDesktop = useIsDesktop();
   const isCollapsed = !isDesktop && !isMobile;
   const { user, isLoading } = useAuth();
+  const { tenant } = useTenant();
+  const brandName = tenant?.name || 'EduManager';
+  const brandLogo = tenant?.logo;
 
   // Close sidebar on Escape key press in mobile view
   useEffect(() => {
@@ -190,10 +194,20 @@ export function Sidebar({ isOpen, onClose }) {
           )}
         >
           <div className="flex items-center overflow-hidden">
-            <GraduationCap className="h-8 w-8 text-primary-600 shrink-0" />
+            {brandLogo ? (
+              <img
+                src={brandLogo}
+                alt={brandName}
+                className="h-8 w-8 object-contain rounded-md shrink-0"
+              />
+            ) : tenant ? (
+              <School className="h-8 w-8 text-primary-600 shrink-0" />
+            ) : (
+              <GraduationCap className="h-8 w-8 text-primary-600 shrink-0" />
+            )}
             {!isCollapsed && (
-              <span className="ml-2 font-bold text-lg text-text-primary tracking-tight truncate">
-                EduManager
+              <span className="ml-2 font-bold text-lg text-text-primary tracking-tight truncate" title={brandName}>
+                {brandName}
               </span>
             )}
           </div>

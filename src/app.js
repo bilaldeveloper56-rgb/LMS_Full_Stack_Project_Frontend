@@ -7,6 +7,7 @@ import errorHandler from './middlewares/errorHandler.js';
 import healthRoutes from './modules/health/health.routes.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import schoolRoutes from './modules/schools/school.routes.js';
+import publicTenantRoutes from './modules/schools/publicTenant.routes.js';
 import academicSessionRoutes from './modules/academics/academicSession.routes.js';
 import classRoutes from './modules/academics/class.routes.js';
 import sectionRoutes from './modules/academics/section.routes.js';
@@ -55,6 +56,7 @@ setupSwagger(app);
 app.use(healthRoutes);
 
 // --- API Routes (v1) ---
+app.use('/api/v1/public/tenant', publicTenantRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/schools', schoolRoutes);
 app.use('/api/v1/academic-sessions', academicSessionRoutes);

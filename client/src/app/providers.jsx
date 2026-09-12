@@ -1,6 +1,7 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, ErrorBoundary } from '@/components/feedback';
+import { TenantProvider } from '@/features/tenant/tenant.context';
 import { AuthProvider } from '@/features/auth/auth.context';
 import { SocketProvider } from '@/providers/SocketProvider';
 
@@ -29,11 +30,13 @@ export default function Providers({ children }) {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SocketProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </SocketProvider>
-        </AuthProvider>
+        <TenantProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </SocketProvider>
+          </AuthProvider>
+        </TenantProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
