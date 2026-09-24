@@ -7,20 +7,20 @@
  * @returns {{ subject: string, html: string, text: string }}
  */
 export const emailVerificationEmail = ({ firstName, verificationUrl, expiresIn }) => ({
-  subject: 'Verify Your Email — School ERP',
+  subject: 'Verify Your Email — LMSPrime',
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #1a1a2e;">Verify Your Email Address</h2>
+      <h2 style="color: #4f46e5;">Verify Your Email Address</h2>
       <p>Hi ${firstName},</p>
-      <p>Welcome to School ERP! Please verify your email address by clicking the button below:</p>
+      <p>Welcome to LMSPrime! Please verify your email address by clicking the button below:</p>
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${verificationUrl}" style="background-color: #1a1a2e; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Verify Email</a>
+        <a href="${verificationUrl}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Verify Email</a>
       </div>
       <p>This link will expire in <strong>${expiresIn}</strong>.</p>
       <p>If you did not create an account, please ignore this email.</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
-      <p style="color: #999; font-size: 12px;">School ERP Platform</p>
+      <p style="color: #999; font-size: 12px;">LMSPrime Platform</p>
     </div>
   `,
-  text: `Hi ${firstName},\n\nWelcome to School ERP! Please verify your email address.\n\nVerify: ${verificationUrl}\n\nThis link will expire in ${expiresIn}.`,
+  text: `Hi ${firstName},\n\nWelcome to LMSPrime! Please verify your email address.\n\nVerify: ${verificationUrl}\n\nThis link will expire in ${expiresIn}.`,
 });

@@ -15,7 +15,7 @@ export function RegisterPage() {
       </h2>
 
       <p className="text-sm text-text-secondary leading-relaxed">
-        EduManager is a multi-tenant institutional platform. User accounts for students, teachers, parents, and administrative staff are issued directly by your school administrator.
+        LMSPrime is a multi-tenant institutional platform. User accounts for students, teachers, parents, and administrative staff are issued directly by your school administrator.
       </p>
 
       <p className="text-xs text-text-muted">

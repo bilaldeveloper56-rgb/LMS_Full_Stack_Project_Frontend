@@ -109,6 +109,12 @@ const updateProfileSchema = z.object({
     .max(50, 'Last name cannot exceed 50 characters')
     .optional(),
   phone: z.string().trim().optional().nullable(),
+  avatar: z
+    .string()
+    .url('Invalid avatar URL')
+    .nullable()
+    .optional()
+    .or(z.literal('')),
 });
 
 export const validateLogin = validate(loginSchema);

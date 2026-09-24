@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { io } from 'socket.io-client';
 import { useAuth } from '@/features/auth/auth.context';
 import { getAccessToken, onTokenChange } from '@/features/auth/auth.token';
+import { getApiBaseUrl } from '@/lib/utils';
 
 const SocketContext = createContext({
   socket: null,
@@ -11,6 +12,7 @@ const SocketContext = createContext({
 /**
  * SocketProvider manages a single shared authenticated Socket.io connection.
  * Connects when the user is authenticated, disconnects on logout.
+ * Implements graceful degradation so temporary real-time failure never breaks REST APIs.
  */
 export function SocketProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
@@ -29,15 +31,15 @@ export function SocketProvider({ children }) {
 
     let socketUrl = import.meta.env.VITE_SOCKET_URL;
     if (!socketUrl) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const apiBase = getApiBaseUrl();
       if (apiBase.startsWith('http://') || apiBase.startsWith('https://')) {
         try {
           socketUrl = new URL(apiBase).origin;
         } catch {
-          socketUrl = window.location.origin;
+          socketUrl = import.meta.env.PROD ? 'https://api.lmsprime.online' : window.location.origin;
         }
       } else {
-        socketUrl = window.location.origin;
+        socketUrl = import.meta.env.PROD ? 'https://api.lmsprime.online' : window.location.origin;
       }
     }
     const token = getAccessToken();
@@ -49,7 +51,7 @@ export function SocketProvider({ children }) {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      reconnectionDelay: 3000,
     });
 
     socketRef.current = socket;
@@ -62,8 +64,12 @@ export function SocketProvider({ children }) {
       setIsConnected(false);
     });
 
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (err) => {
       setIsConnected(false);
+      // Graceful degradation: real-time down does not impact REST API usage
+      if (import.meta.env.DEV) {
+        console.warn('[Socket.io] Real-time connection temporarily unavailable:', err.message);
+      }
     });
 
     // Update socket auth token if access token refreshes

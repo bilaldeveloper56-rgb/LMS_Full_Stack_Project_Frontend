@@ -1,20 +1,22 @@
 import axios from 'axios';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage, getApiBaseUrl } from '@/lib/utils';
 import { getAccessToken, setAccessToken, clearAccessToken } from '@/features/auth/auth.token';
 import { getTenantSubdomain } from '@/lib/tenant';
+
+export { getApiBaseUrl };
 
 /**
  * Centralized Axios instance for all API communication.
  *
- * - Base URL from VITE_API_BASE_URL environment variable.
- * - 30-second timeout.
+ * - Base URL resolved dynamically via getApiBaseUrl().
+ * - 45-second timeout (accommodates serverless/container cold-start latency).
  * - withCredentials: true ensures HttpOnly refreshToken cookie is transmitted.
  * - Request interceptor automatically attaches the in-memory access token.
  * - Response interceptor implements concurrency-safe 401 refresh queue & retry.
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 30000,
+  baseURL: getApiBaseUrl(),
+  timeout: 45000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -113,11 +115,11 @@ api.interceptors.response.use(
 
     try {
       // Direct POST to refresh endpoint using raw axios to bypass interceptors
-      const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+      const baseURL = getApiBaseUrl();
       const refreshResponse = await axios.post(
         `${baseURL}/auth/refresh-token`,
         {},
-        { withCredentials: true }
+        { withCredentials: true, timeout: 45000 }
       );
 
       const newAccessToken = refreshResponse.data?.data?.accessToken;

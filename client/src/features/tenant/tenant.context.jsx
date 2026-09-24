@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { getTenantSubdomain, isPlatformHost } from '@/lib/tenant';
+import { getApiBaseUrl } from '@/lib/utils';
 
 const TenantContext = createContext(null);
 
@@ -29,14 +30,16 @@ export function TenantProvider({ children }) {
 
     async function loadTenantConfig() {
       try {
-        const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+        const baseURL = getApiBaseUrl();
         const headers = {};
-        if (import.meta.env.DEV && detectedSlug) {
+        if (detectedSlug) {
           headers['X-Tenant-Subdomain'] = detectedSlug;
         }
         const response = await axios.get(`${baseURL}/public/tenant/current`, {
+          params: { slug: detectedSlug },
           headers,
           withCredentials: true,
+          timeout: 45000,
         });
 
         if (isMounted) {

@@ -1,6 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn, getInitials } from '@/lib/utils';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut, User } from 'lucide-react';
 import { useIsMobile, useIsDesktop } from '@/hooks/useMediaQuery';
 import { useAuth } from '@/features/auth';
 import { ROLE_LABELS } from '@/constants';
@@ -8,6 +9,7 @@ import { Dropdown, Badge } from '@/components/ui';
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 
 export function Header({ onMenuClick, pageTitle = '', breadcrumbs = [] }) {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
   const isCollapsed = !isDesktop && !isMobile;
@@ -80,9 +82,17 @@ export function Header({ onMenuClick, pageTitle = '', breadcrumbs = [] }) {
                 className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full hover:bg-surface-muted transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
                 aria-label="User menu"
               >
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary-100 text-primary-700 font-medium text-xs">
-                  {userInitials}
-                </div>
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={fullName}
+                    className="h-8 w-8 rounded-full object-cover border border-border"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary-100 text-primary-700 font-medium text-xs">
+                    {userInitials}
+                  </div>
+                )}
                 {!isMobile && (
                   <div className="text-left mr-1">
                     <span className="block text-xs font-semibold text-text-primary leading-tight">
@@ -109,6 +119,13 @@ export function Header({ onMenuClick, pageTitle = '', breadcrumbs = [] }) {
                 </div>
               )}
             </div>
+
+            <Dropdown.Item
+              icon={User}
+              onClick={() => navigate('/profile')}
+            >
+              My Profile
+            </Dropdown.Item>
 
             <Dropdown.Item
               icon={LogOut}

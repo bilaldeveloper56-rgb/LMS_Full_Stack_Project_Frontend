@@ -87,7 +87,24 @@ export function truncate(text, maxLength = 50) {
 }
 
 /**
- * Extract readable error message from API error response.
+ * Resolves the authoritative API Base URL.
+ * In development, defaults to '/api/v1' (proxied by Vite).
+ * In production, defaults to 'https://api.lmsprime.online/api/v1'.
+ * Can be overridden by VITE_API_BASE_URL.
+ * @returns {string}
+ */
+export function getApiBaseUrl() {
+  const envUrl = import.meta.env?.VITE_API_BASE_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
+    return envUrl.trim();
+  }
+  return import.meta.env?.PROD ? 'https://api.lmsprime.online/api/v1' : '/api/v1';
+}
+
+/**
+ * Extract readable, user-facing error message from API error response or network failure.
+ * Distinguishes offline, 401, 403, 404, 422, 429, 500, 502/503/504, timeout, and network errors.
+ * Never leaks stack traces, database strings, or internal secrets.
  * @param {Error|object} error
  * @param {string} [fallback='An unexpected error occurred.']
  * @returns {string}
@@ -95,20 +112,80 @@ export function truncate(text, maxLength = 50) {
 export function getErrorMessage(error, fallback = 'An unexpected error occurred.') {
   if (!error) return fallback;
 
-  // Axios error with backend response
-  const data = error?.response?.data;
+  // 1. Browser offline detection
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return 'You appear to be offline. Please check your internet connection.';
+  }
+
+  const response = error?.response;
+  const status = response?.status;
+  const data = response?.data;
+
+  // 2. Specific Backend Validation Errors (e.g. 422, 400 with validation message list)
   if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
     return data.errors.join(', ');
   }
-  if (data?.message) return data.message;
 
-  // Network / connection errors
-  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-    return 'There was a network issue connecting to the server. Please check your connection and try again.';
+  // 3. Backend-provided explicit operational error message (sanitized)
+  if (data?.message && typeof data.message === 'string') {
+    const msg = data.message;
+    const isSensitive = /mongo|econnrefused|jwt secret|cloudinary|sql|stack trace|at Object\./i.test(msg);
+    if (!isSensitive) {
+      return msg;
+    }
   }
 
-  // Standard Error
-  if (error.message) return error.message;
+  // 4. HTTP Status Code Classification
+  if (status) {
+    switch (status) {
+      case 401:
+        return 'Your session has expired. Please sign in again.';
+      case 403:
+        return 'You do not have permission to perform this action.';
+      case 404:
+        return 'The requested resource was not found.';
+      case 422:
+        return data?.message || 'The provided data failed validation. Please check your inputs.';
+      case 429:
+        return 'Too many requests. Please wait a moment and try again.';
+      case 500:
+        return 'Something went wrong on the server. Please try again.';
+      case 502:
+      case 503:
+      case 504:
+        return 'The server is temporarily unavailable. Please try again shortly.';
+      default:
+        if (status >= 500) {
+          return 'The server is temporarily unavailable. Please try again shortly.';
+        }
+    }
+  }
+
+  // 5. Timeout errors (Axios ECONNABORTED or message containing timeout)
+  if (error.code === 'ECONNABORTED' || (error.message && error.message.toLowerCase().includes('timeout'))) {
+    return 'The server took too long to respond. Please try again.';
+  }
+
+  // 6. Network / CORS / Browser-level connection failure (no response received)
+  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || !response) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[Network Error Details]', {
+        code: error.code,
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+    }
+    return 'Unable to reach the server. Please check your internet connection and try again.';
+  }
+
+  // 7. Generic fallback
+  if (error.message && typeof error.message === 'string') {
+    const isTechMsg = /status code|network|failed with/i.test(error.message);
+    if (!isTechMsg) {
+      return error.message;
+    }
+  }
 
   return fallback;
 }

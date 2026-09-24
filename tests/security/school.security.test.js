@@ -35,18 +35,33 @@ describe('Phase 3 Security & Multi-Tenancy Governance Tests', () => {
     };
 
     const originalFindByIdAndUpdate = User.findByIdAndUpdate;
+    const originalFindById = User.findById;
     let payloadPassed = null;
 
     User.findByIdAndUpdate = (id, allowed, opts) => {
       payloadPassed = allowed;
       return Promise.resolve({
+        _id: id,
+        role: ROLES.SCHOOL_ADMIN,
         toJSON: () => ({ id, firstName: allowed.firstName }),
       });
     };
 
+    const mockUserDoc = {
+      _id: '507f1f77bcf86cd799439002',
+      role: ROLES.SCHOOL_ADMIN,
+      schoolId: null,
+      toJSON: () => ({ id: '507f1f77bcf86cd799439002', firstName: 'Hacker' }),
+    };
+    User.findById = () => ({
+      populate: () => Promise.resolve(mockUserDoc),
+      then: (resolve, reject) => Promise.resolve(mockUserDoc).then(resolve, reject),
+    });
+
     await authService.updateProfile('507f1f77bcf86cd799439002', updates);
 
     User.findByIdAndUpdate = originalFindByIdAndUpdate;
+    User.findById = originalFindById;
 
     assert.equal(payloadPassed.firstName, 'Hacker');
     assert.equal(payloadPassed.role, undefined, 'Role mutation must be forbidden');

@@ -9,8 +9,13 @@ import { sendEmail } from '../../providers/email.provider.js';
 import { passwordResetEmail } from '../../templates/emails/passwordReset.js';
 import { emailVerificationEmail } from '../../templates/emails/emailVerification.js';
 import AppError from '../../utils/AppError.js';
-import { USER_STATUS, SCHOOL_STATUS, AUTH_EVENTS } from '../../constants/index.js';
+import { USER_STATUS, SCHOOL_STATUS, AUTH_EVENTS, ROLES } from '../../constants/index.js';
 import { buildFrontendUrl } from '../../utils/urlHelper.js';
+import Student from '../students/student.model.js';
+import Teacher from '../teachers/teacher.model.js';
+import TeacherAssignment from '../academics/teacherAssignment.model.js';
+import Parent from '../parents/parent.model.js';
+import StudentParent from '../parents/studentParent.model.js';
 
 // Helper functions (NOT exported)
 function generateAccessToken(user) {
@@ -285,9 +290,116 @@ export async function resendVerification(email) {
 }
 
 export async function getCurrentUser(userId) {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).populate('schoolId', 'name slug logo schoolCode status');
   if (!user) throw AppError.notFound('User not found');
-  return user.toJSON();
+  
+  const userJson = user.toJSON();
+
+  // Populate school branding data safely
+  if (user.schoolId && typeof user.schoolId === 'object' && user.schoolId._id) {
+    userJson.school = {
+      id: user.schoolId._id,
+      name: user.schoolId.name,
+      slug: user.schoolId.slug,
+      logo: user.schoolId.logo || null,
+      logoUrl: user.schoolId.logo || null,
+      schoolCode: user.schoolId.schoolCode,
+      status: user.schoolId.status,
+    };
+    userJson.schoolId = user.schoolId._id;
+  }
+
+  // Attach role-specific data only when available
+  if (user.role === ROLES.STUDENT) {
+    try {
+      const student = await Student.findOne({ userId: user._id, isDeleted: false })
+        .populate('academicSessionId', 'name')
+        .populate('classId', 'name')
+        .populate('sectionId', 'name')
+        .lean();
+      if (student) {
+        userJson.studentProfile = {
+          admissionNumber: student.admissionNumber,
+          rollNumber: student.rollNumber || null,
+          className: student.classId?.name || null,
+          sectionName: student.sectionId?.name || null,
+          academicSessionName: student.academicSessionId?.name || null,
+          dateOfBirth: student.dateOfBirth || null,
+          gender: student.gender || null,
+          emergencyContactName: student.emergencyContactName || null,
+          emergencyContactPhone: student.emergencyContactPhone || null,
+        };
+      }
+    } catch (e) {
+      logger.warn('Failed to load student role profile', { error: e.message });
+    }
+  } else if (user.role === ROLES.TEACHER) {
+    try {
+      const teacher = await Teacher.findOne({ userId: user._id, isDeleted: false }).lean();
+      if (teacher) {
+        const assignments = await TeacherAssignment.find({ teacherId: teacher._id, isDeleted: false })
+          .populate('subjectId', 'name code')
+          .populate('classId', 'name')
+          .populate('sectionId', 'name')
+          .lean();
+
+        userJson.teacherProfile = {
+          employeeId: teacher.employeeId,
+          designation: teacher.designation || 'Teacher',
+          qualification: teacher.qualification || null,
+          specialization: teacher.specialization || null,
+          joiningDate: teacher.joiningDate || null,
+          assignments: assignments.map((a) => ({
+            id: a._id,
+            subject: a.subjectId ? { name: a.subjectId.name, code: a.subjectId.code } : null,
+            class: a.classId ? { name: a.classId.name } : null,
+            section: a.sectionId ? { name: a.sectionId.name } : null,
+          })),
+        };
+      }
+    } catch (e) {
+      logger.warn('Failed to load teacher role profile', { error: e.message });
+    }
+  } else if (user.role === ROLES.PARENT) {
+    try {
+      const parent = await Parent.findOne({ userId: user._id, isDeleted: false }).lean();
+      if (parent) {
+        const studentParents = await StudentParent.find({ parentId: parent._id, isDeleted: false })
+          .populate({
+            path: 'studentId',
+            select: 'firstName lastName admissionNumber rollNumber classId sectionId profileImage',
+            populate: [
+              { path: 'classId', select: 'name' },
+              { path: 'sectionId', select: 'name' },
+            ],
+          })
+          .lean();
+
+        userJson.parentProfile = {
+          phone: parent.phone,
+          alternatePhone: parent.alternatePhone || null,
+          address: parent.address || null,
+          occupation: parent.occupation || null,
+          relationship: parent.relationship || null,
+          children: studentParents
+            .filter((sp) => sp.studentId)
+            .map((sp) => ({
+              id: sp.studentId._id,
+              name: `${sp.studentId.firstName || ''} ${sp.studentId.lastName || ''}`.trim(),
+              admissionNumber: sp.studentId.admissionNumber,
+              rollNumber: sp.studentId.rollNumber || null,
+              className: sp.studentId.classId?.name || null,
+              sectionName: sp.studentId.sectionId?.name || null,
+              profileImage: sp.studentId.profileImage || null,
+            })),
+        };
+      }
+    } catch (e) {
+      logger.warn('Failed to load parent role profile', { error: e.message });
+    }
+  }
+
+  return userJson;
 }
 
 export async function updateProfile(userId, updates) {
@@ -295,8 +407,20 @@ export async function updateProfile(userId, updates) {
   if (updates.firstName !== undefined) allowedUpdates.firstName = updates.firstName;
   if (updates.lastName !== undefined) allowedUpdates.lastName = updates.lastName;
   if (updates.phone !== undefined) allowedUpdates.phone = updates.phone;
+  if (updates.avatar !== undefined) allowedUpdates.avatar = updates.avatar || null;
   
   const user = await User.findByIdAndUpdate(userId, allowedUpdates, { new: true, runValidators: true });
   if (!user) throw AppError.notFound('User not found');
-  return user.toJSON();
+
+  // Keep Teacher / Student profileImage in sync if avatar was updated
+  if (updates.avatar !== undefined) {
+    const avatarVal = updates.avatar || null;
+    if (user.role === ROLES.TEACHER) {
+      await Teacher.updateOne({ userId: user._id }, { profileImage: avatarVal });
+    } else if (user.role === ROLES.STUDENT) {
+      await Student.updateOne({ userId: user._id }, { profileImage: avatarVal });
+    }
+  }
+
+  return getCurrentUser(userId);
 }

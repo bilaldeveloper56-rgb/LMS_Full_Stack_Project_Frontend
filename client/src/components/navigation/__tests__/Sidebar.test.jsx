@@ -27,9 +27,10 @@ describe('Role-Aware Sidebar Navigation', () => {
     );
 
     expect(screen.getByText('Schools')).toBeInTheDocument();
-    expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.getByText('Analytics')).toBeInTheDocument();
     expect(screen.getByText('Audit Logs')).toBeInTheDocument();
+    expect(screen.getByLabelText('User Profile')).toBeInTheDocument();
   });
 
   it('School Admin should see school management items, but NOT platform Schools item', () => {
@@ -46,10 +47,11 @@ describe('Role-Aware Sidebar Navigation', () => {
     );
 
     expect(screen.queryByText('Schools')).not.toBeInTheDocument();
-    expect(screen.getByText('Users')).toBeInTheDocument();
+    expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.getByText('Students')).toBeInTheDocument();
     expect(screen.getByText('Teachers')).toBeInTheDocument();
     expect(screen.getByText('Fees')).toBeInTheDocument();
+    expect(screen.getByLabelText('User Profile')).toBeInTheDocument();
   });
 
   it('Teacher should see teaching & academic items, but NOT Fees, Schools, or Audit Logs', () => {

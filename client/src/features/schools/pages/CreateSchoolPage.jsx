@@ -8,6 +8,7 @@ import { Breadcrumb, Button, Card, Input } from '@/components/ui';
 import { createSchoolFormSchema } from '../schemas/school.schema';
 import { useCreateSchool } from '../hooks/useSchools';
 import { slugify } from '@/lib/tenant';
+import { getApiBaseUrl } from '@/lib/utils';
 
 export function CreateSchoolPage() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export function CreateSchoolPage() {
     const timer = setTimeout(async () => {
       setSlugStatus({ state: 'checking', message: 'Checking availability...' });
       try {
-        const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+        const baseURL = getApiBaseUrl();
         const response = await axios.get(`${baseURL}/public/tenant/slug-availability/${watchedSlug}`);
         const data = response.data?.data;
         if (data?.available) {

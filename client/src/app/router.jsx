@@ -12,6 +12,7 @@ import { PERMISSIONS } from '@/constants';
  */
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage'));
 
@@ -187,6 +188,14 @@ const router = createBrowserRouter([
         element: (
           <SuspenseWrap>
             <DashboardPage />
+          </SuspenseWrap>
+        ),
+      },
+      {
+        path: '/profile',
+        element: (
+          <SuspenseWrap>
+            <ProfilePage />
           </SuspenseWrap>
         ),
       },

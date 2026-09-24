@@ -53,6 +53,22 @@ export async function updateProfileApi(profileData) {
 }
 
 /**
+ * Upload profile avatar image directly to Cloudinary via backend.
+ * @param {File} file - Avatar image file (max 2 MB)
+ * @returns {Promise<{ url: string, secureUrl: string, publicId: string }>}
+ */
+export async function uploadAvatarApi(file) {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const response = await api.post('/uploads/avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data.data;
+}
+
+/**
  * Change current user password.
  * @param {{ currentPassword: string, newPassword: string, confirmPassword: string }} payload
  * @returns {Promise<void>}

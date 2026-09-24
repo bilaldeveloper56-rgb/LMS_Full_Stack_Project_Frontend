@@ -1,11 +1,11 @@
 import React, { useMemo, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { useIsMobile, useIsDesktop } from '@/hooks/useMediaQuery';
 import { useAuth } from '@/features/auth';
 import { useTenant } from '@/features/tenant/tenant.context';
 import { canAccess } from '@/lib/authorization';
-import { NAV_GROUPS } from '@/constants';
+import { NAV_GROUPS, ROLE_LABELS } from '@/constants';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -59,8 +59,12 @@ export function Sidebar({ isOpen, onClose }) {
   const isCollapsed = !isDesktop && !isMobile;
   const { user, isLoading } = useAuth();
   const { tenant } = useTenant();
-  const brandName = tenant?.name || 'EduManager';
-  const brandLogo = tenant?.logo;
+  const brandName = tenant?.name || 'LMSPrime';
+  const brandLogo = tenant?.logoUrl || tenant?.logo;
+
+  const userInitials = user ? getInitials(user.firstName, user.lastName) : 'U';
+  const fullName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'User';
+  const roleDisplay = user?.role ? (ROLE_LABELS[user.role] || user.role) : '';
 
   // Close sidebar on Escape key press in mobile view
   useEffect(() => {
@@ -225,6 +229,46 @@ export function Sidebar({ isOpen, onClose }) {
         <nav className="flex-1 overflow-y-auto py-4 overflow-x-hidden scrollbar-thin">
           {renderNavItems()}
         </nav>
+
+        {user && (
+          <div className="p-3 border-t border-border shrink-0">
+            <NavLink
+              to="/profile"
+              onClick={isMobile ? onClose : undefined}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center rounded-lg p-2 transition-colors hover:bg-surface-muted',
+                  isActive ? 'bg-primary-50 text-primary-600' : 'text-text-primary',
+                  isCollapsed ? 'justify-center' : 'gap-3'
+                )
+              }
+              title={isCollapsed ? fullName : undefined}
+              aria-label="User Profile"
+            >
+              <div className="relative shrink-0">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={fullName}
+                    className="h-9 w-9 rounded-full object-cover border border-border"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary-100 text-primary-700 font-semibold text-xs border border-border">
+                    {userInitials}
+                  </div>
+                )}
+              </div>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium text-text-primary truncate">{fullName}</p>
+                  {roleDisplay && (
+                    <p className="text-xs text-text-muted truncate">{roleDisplay}</p>
+                  )}
+                </div>
+              )}
+            </NavLink>
+          </div>
+        )}
       </aside>
     </>
   );

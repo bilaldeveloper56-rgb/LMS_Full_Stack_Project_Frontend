@@ -122,7 +122,8 @@ describe('Auth API HTTP Route Integration Tests', () => {
 
     User.findById = (id) => {
       const query = {
-        select: () => Promise.resolve(mockUserDoc),
+        select: () => query,
+        populate: () => query,
         then: (resolve, reject) => Promise.resolve(mockUserDoc).then(resolve, reject),
       };
       return query;

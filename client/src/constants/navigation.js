@@ -23,7 +23,7 @@ export const NAV_GROUPS = Object.freeze([
   },
   {
     label: 'Administration',
-    roles: [ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN],
+    roles: [ROLES.SUPER_ADMIN],
     items: [
       {
         label: 'Schools',
@@ -31,12 +31,6 @@ export const NAV_GROUPS = Object.freeze([
         icon: 'School',
         roles: [ROLES.SUPER_ADMIN],
         permissions: [PERMISSIONS.SCHOOLS_READ],
-      },
-      {
-        label: 'Users',
-        path: '/users',
-        icon: 'Users',
-        permissions: [PERMISSIONS.USERS_READ],
       },
     ],
   },

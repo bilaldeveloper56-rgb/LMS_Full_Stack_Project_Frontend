@@ -6,11 +6,11 @@ import { useTenant } from '@/features/tenant/tenant.context';
 export function AuthLayout() {
   const { tenant } = useTenant();
 
-  const brandName = tenant?.name || 'EduManager';
+  const brandName = tenant?.name || 'LMSPrime';
   const brandSubtitle = tenant?.name
-    ? 'Official School Portal'
+    ? 'Official School Portal • Powered by LMSPrime'
     : 'Enterprise School Management System';
-  const brandLogo = tenant?.logo;
+  const brandLogo = tenant?.logoUrl || tenant?.logo;
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-surface-muted font-sans text-text-primary">

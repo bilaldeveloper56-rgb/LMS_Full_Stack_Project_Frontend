@@ -35,7 +35,7 @@ export default function LandingPage() {
               <GraduationCap className="w-5 h-5 text-text-inverted" />
             </div>
             <span className="text-lg font-semibold text-text-primary tracking-tight">
-              EduManager
+              LMSPrime
             </span>
           </div>
           <Link
@@ -111,7 +111,7 @@ export default function LandingPage() {
       <footer className="border-t border-border bg-surface">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <p className="text-xs text-text-muted text-center">
-            &copy; {new Date().getFullYear()} EduManager. All rights reserved.
+            &copy; {new Date().getFullYear()} LMSPrime. All rights reserved.
           </p>
         </div>
       </footer>

@@ -7,7 +7,15 @@ import { TenantNotFoundPage } from '@/features/tenant/pages/TenantNotFoundPage';
 import { LoadingState } from '@/components/feedback';
 
 function AppContent() {
-  const { isNotFound, isLoading } = useTenant();
+  const { tenant, isNotFound, isLoading } = useTenant();
+
+  React.useEffect(() => {
+    if (tenant?.name) {
+      document.title = `${tenant.name} | LMSPrime`;
+    } else {
+      document.title = 'LMSPrime';
+    }
+  }, [tenant?.name]);
 
   if (isLoading) {
     return (
