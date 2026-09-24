@@ -144,6 +144,8 @@ export function getErrorMessage(error, fallback = 'An unexpected error occurred.
         return 'You do not have permission to perform this action.';
       case 404:
         return 'The requested resource was not found.';
+      case 408:
+        return 'The server is taking longer than expected. Please try again.';
       case 422:
         return data?.message || 'The provided data failed validation. Please check your inputs.';
       case 429:
@@ -153,20 +155,20 @@ export function getErrorMessage(error, fallback = 'An unexpected error occurred.
       case 502:
       case 503:
       case 504:
-        return 'The server is temporarily unavailable. Please try again shortly.';
+        return 'The server is temporarily unavailable. Please try again in a moment.';
       default:
         if (status >= 500) {
-          return 'The server is temporarily unavailable. Please try again shortly.';
+          return 'The server is temporarily unavailable. Please try again in a moment.';
         }
     }
   }
 
-  // 5. Timeout errors (Axios ECONNABORTED or message containing timeout)
+  // 5. Temporary cold-start timeout (Axios ECONNABORTED or message containing timeout)
   if (error.code === 'ECONNABORTED' || (error.message && error.message.toLowerCase().includes('timeout'))) {
-    return 'The server took too long to respond. Please try again.';
+    return 'The server is waking up. Please wait a moment while we reconnect.';
   }
 
-  // 6. Network / CORS / Browser-level connection failure (no response received)
+  // 6. Genuine network / connection failure (no response received)
   if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || !response) {
     if (typeof console !== 'undefined' && console.warn) {
       console.warn('[Network Error Details]', {
@@ -176,7 +178,7 @@ export function getErrorMessage(error, fallback = 'An unexpected error occurred.
         method: error.config?.method,
       });
     }
-    return 'Unable to reach the server. Please check your internet connection and try again.';
+    return 'Unable to connect to the server. Please check your internet connection and try again.';
   }
 
   // 7. Generic fallback

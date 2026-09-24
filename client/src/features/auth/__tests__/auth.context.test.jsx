@@ -119,4 +119,36 @@ describe('AuthContext & Provider', () => {
 
     expect(result.current.user?.firstName).toBe('Johnny');
   });
+
+  it('should reset user state and redirect when session expiration event is emitted', async () => {
+    authApi.refreshTokenApi.mockResolvedValueOnce({ accessToken: 'session-token' });
+    authApi.getMeApi.mockResolvedValueOnce({
+      user: { id: 'u1', email: 'admin@school.com', role: 'SCHOOL_ADMIN' },
+    });
+
+    const assignSpy = vi.fn();
+    delete window.location;
+    window.location = {
+      pathname: '/dashboard',
+      assign: assignSpy,
+    };
+
+    const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+
+    const { emitSessionExpired } = await import('../auth.token');
+    act(() => {
+      emitSessionExpired();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
+    });
+    expect(assignSpy).toHaveBeenCalledWith('/login?expired=true');
+  });
 });

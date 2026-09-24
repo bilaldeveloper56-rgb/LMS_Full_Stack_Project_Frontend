@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getErrorMessage, getApiBaseUrl, truncate, getInitials, cn } from '../utils';
 
 describe('getErrorMessage Utility', () => {
@@ -99,21 +99,25 @@ describe('getErrorMessage Utility', () => {
     expect(getErrorMessage(error)).toBe('Something went wrong on the server. Please try again.');
   });
 
+  it('should categorize HTTP 408 as server taking longer than expected', () => {
+    expect(getErrorMessage({ response: { status: 408 } })).toBe('The server is taking longer than expected. Please try again.');
+  });
+
   it('should categorize HTTP 502/503/504 as server temporarily unavailable', () => {
-    expect(getErrorMessage({ response: { status: 502 } })).toBe('The server is temporarily unavailable. Please try again shortly.');
-    expect(getErrorMessage({ response: { status: 503 } })).toBe('The server is temporarily unavailable. Please try again shortly.');
-    expect(getErrorMessage({ response: { status: 504 } })).toBe('The server is temporarily unavailable. Please try again shortly.');
+    expect(getErrorMessage({ response: { status: 502 } })).toBe('The server is temporarily unavailable. Please try again in a moment.');
+    expect(getErrorMessage({ response: { status: 503 } })).toBe('The server is temporarily unavailable. Please try again in a moment.');
+    expect(getErrorMessage({ response: { status: 504 } })).toBe('The server is temporarily unavailable. Please try again in a moment.');
   });
 
   it('should categorize ECONNABORTED timeout error correctly', () => {
-    const error = { code: 'ECONNABORTED', message: 'timeout of 45000ms exceeded' };
-    expect(getErrorMessage(error)).toBe('The server took too long to respond. Please try again.');
+    const error = { code: 'ECONNABORTED', message: 'timeout of 90000ms exceeded' };
+    expect(getErrorMessage(error)).toBe('The server is waking up. Please wait a moment while we reconnect.');
   });
 
   it('should categorize ERR_NETWORK and Network Error correctly', () => {
-    expect(getErrorMessage({ code: 'ERR_NETWORK' })).toBe('Unable to reach the server. Please check your internet connection and try again.');
-    expect(getErrorMessage({ message: 'Network Error' })).toBe('Unable to reach the server. Please check your internet connection and try again.');
-    expect(getErrorMessage(new Error('Network Error'))).toBe('Unable to reach the server. Please check your internet connection and try again.');
+    expect(getErrorMessage({ code: 'ERR_NETWORK' })).toBe('Unable to connect to the server. Please check your internet connection and try again.');
+    expect(getErrorMessage({ message: 'Network Error' })).toBe('Unable to connect to the server. Please check your internet connection and try again.');
+    expect(getErrorMessage(new Error('Network Error'))).toBe('Unable to connect to the server. Please check your internet connection and try again.');
   });
 });
 

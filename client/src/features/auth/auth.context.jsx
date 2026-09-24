@@ -1,17 +1,54 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   loginApi,
   logoutApi,
   refreshTokenApi,
   getMeApi,
 } from './api/auth.api';
-import { setAccessToken, clearAccessToken } from './auth.token';
+import { setAccessToken, clearAccessToken, onSessionExpired } from './auth.token';
 
 const AuthContext = createContext(null);
+
+function useSafeQueryClient() {
+  try {
+    return useQueryClient();
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useSafeQueryClient();
+
+  /**
+   * Subscribe to session expiration events triggered by refresh failure.
+   */
+  useEffect(() => {
+    const unsubscribe = onSessionExpired(() => {
+      clearAccessToken();
+      setUser(null);
+      if (queryClient) {
+        try {
+          queryClient.clear();
+        } catch {
+          // Gracefully handle query cache reset fallback
+        }
+      }
+      if (typeof window !== 'undefined') {
+        const isAlreadyOnLogin = window.location.pathname.startsWith('/login');
+        if (!isAlreadyOnLogin) {
+          window.location.assign('/login?expired=true');
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [queryClient]);
 
   /**
    * Restore user session on app launch.

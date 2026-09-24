@@ -4,6 +4,8 @@ import {
   setAccessToken,
   clearAccessToken,
   onTokenChange,
+  emitSessionExpired,
+  onSessionExpired,
 } from '../auth.token';
 
 describe('In-Memory Access Token Store', () => {
@@ -38,6 +40,21 @@ describe('In-Memory Access Token Store', () => {
 
     unsubscribe();
     setAccessToken('another.token');
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('should notify subscribers on session expired event and support unsubscribe', () => {
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+
+    emitSessionExpired();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    emitSessionExpired();
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    emitSessionExpired();
     expect(listener).toHaveBeenCalledTimes(2);
   });
 });

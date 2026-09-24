@@ -130,4 +130,15 @@ describe('LoginForm Component', () => {
       expect(screen.getByText('Invalid email or password')).toBeInTheDocument();
     });
   });
+
+  it('should display session expired alert when query parameter expired=true is present', () => {
+    render(
+      <MemoryRouter initialEntries={['/login?expired=true']}>
+        <LoginForm />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Session Expired')).toBeInTheDocument();
+    expect(screen.getByText('Your session has expired. Please sign in again.')).toBeInTheDocument();
+  });
 });

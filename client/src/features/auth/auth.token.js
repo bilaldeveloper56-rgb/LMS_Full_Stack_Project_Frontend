@@ -48,3 +48,30 @@ export function onTokenChange(listener) {
     listeners.delete(listener);
   };
 }
+
+const sessionExpiredListeners = new Set();
+
+/**
+ * Emit a session expired event to all subscribers (e.g. AuthProvider).
+ */
+export function emitSessionExpired() {
+  sessionExpiredListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // Ignore listener error
+    }
+  });
+}
+
+/**
+ * Subscribe to session expired events.
+ * @param {() => void} listener
+ * @returns {() => void} Unsubscribe function
+ */
+export function onSessionExpired(listener) {
+  sessionExpiredListeners.add(listener);
+  return () => {
+    sessionExpiredListeners.delete(listener);
+  };
+}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth } from '../auth.context';
 import { extractApiError } from '@/config/api';
@@ -24,9 +24,22 @@ export function LoginForm() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [serverError, setServerError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSessionExpired, setIsSessionExpired] = useState(
+    () => searchParams.get('expired') === 'true'
+  );
+
+  React.useEffect(() => {
+    if (searchParams.get('expired') === 'true') {
+      setIsSessionExpired(true);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('expired');
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const {
     register,
@@ -42,6 +55,7 @@ export function LoginForm() {
 
   const onSubmit = async (data) => {
     setServerError(null);
+    setIsSessionExpired(false);
     try {
       await login(data);
       const destination = location.state?.from?.pathname || '/dashboard';
@@ -54,6 +68,16 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {isSessionExpired && !serverError && (
+        <Alert
+          variant="info"
+          title="Session Expired"
+          onDismiss={() => setIsSessionExpired(false)}
+        >
+          Your session has expired. Please sign in again.
+        </Alert>
+      )}
+
       {serverError && (
         <Alert
           variant="error"
